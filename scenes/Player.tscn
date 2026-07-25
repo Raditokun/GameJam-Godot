@@ -1,0 +1,82 @@
+[gd_scene format=3 uid="uid://bm4iy1ff4hkun"]
+
+[ext_resource type="Script" uid="uid://jr78w6ypf3mu" path="res://scenes/Player.gd" id="1_player"]
+[ext_resource type="AudioStream" uid="uid://b7bkuar200rr2" path="res://Sounds/Jumping trimed.mp3" id="2_v6fml"]
+[ext_resource type="PackedScene" path="res://scenes/Pistol.tscn" id="3_pistol"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_player"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_player"]
+albedo_color = Color(0.3, 0.55, 0.9, 1)
+roughness = 0.7
+
+[node name="Player" type="CharacterBody3D" unique_id=1158772429]
+script = ExtResource("1_player")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=2106776938]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_player")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1434470437]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+mesh = SubResource("CapsuleMesh_player")
+surface_material_override/0 = SubResource("StandardMaterial3D_player")
+
+[node name="Head" type="Node3D" parent="." unique_id=1925467861]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+
+[node name="Camera3D" type="Camera3D" parent="Head" unique_id=1675424078]
+
+[node name="RayCast3D" type="RayCast3D" parent="Head/Camera3D" unique_id=634501365]
+target_position = Vector3(0, 0, -100)
+
+[node name="Pistol" parent="Head/Camera3D" unique_id=295870913 instance=ExtResource("3_pistol")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, -0.2, -0.45)
+ray = NodePath("../RayCast3D")
+ammo_label = NodePath("../../../HUD/AmmoLabel")
+
+[node name="jump" type="AudioStreamPlayer3D" parent="." unique_id=76217393]
+stream = ExtResource("2_v6fml")
+volume_db = -7.477
+
+[node name="HUD" type="CanvasLayer" parent="." unique_id=513739344]
+
+[node name="StatsLabel" type="Label" parent="HUD" unique_id=1801439489]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -132.0
+offset_right = 416.0
+offset_bottom = -16.0
+grow_vertical = 0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+vertical_alignment = 2
+
+[node name="AmmoLabel" type="Label" parent="HUD" unique_id=493971292]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -280.0
+offset_top = -104.0
+offset_right = -24.0
+offset_bottom = -16.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 30
+horizontal_alignment = 2
+vertical_alignment = 2

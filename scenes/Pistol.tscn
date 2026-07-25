@@ -1,0 +1,29 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/Pistol.gd" id="1_pistol"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gun"]
+albedo_color = Color(0.16, 0.17, 0.19, 1)
+metallic = 0.6
+roughness = 0.55
+
+[node name="Pistol" type="Node3D"]
+script = ExtResource("1_pistol")
+
+[node name="Slide" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.1)
+size = Vector3(0.055, 0.06, 0.3)
+material = SubResource("StandardMaterial3D_gun")
+
+[node name="Grip" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.9848, -0.1736, 0, 0.1736, 0.9848, 0, -0.11, 0.035)
+size = Vector3(0.05, 0.17, 0.075)
+material = SubResource("StandardMaterial3D_gun")
+
+[node name="TriggerGuard" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.045, -0.045)
+size = Vector3(0.03, 0.045, 0.045)
+material = SubResource("StandardMaterial3D_gun")
+
+[node name="Muzzle" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.26)

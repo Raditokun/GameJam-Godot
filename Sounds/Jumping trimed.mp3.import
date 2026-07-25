@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://b7bkuar200rr2"
+path="res://.godot/imported/Jumping trimed.mp3-0b2add91d8f8b79e930f6fdeb08b3b56.mp3str"
+
+[deps]
+
+source_file="res://Sounds/Jumping trimed.mp3"
+dest_files=["res://.godot/imported/Jumping trimed.mp3-0b2add91d8f8b79e930f6fdeb08b3b56.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4
