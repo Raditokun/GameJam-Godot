@@ -43,6 +43,16 @@ extends Node3D
 
 @onready var muzzle: Marker3D = $Muzzle
 
+## True while this weapon is the one in the player's hands. Holstered weapons
+## hide themselves, ignore fire/reload input, and take their ammo readout with
+## them -- a pistol magazine count means nothing while the sword is out.
+var equipped := true:
+	set(value):
+		equipped = value
+		visible = value
+		if ammo_label != null:
+			ammo_label.visible = value
+
 var _cooldown := 0.0
 var _reloading := false
 var _rest_position := Vector3.ZERO
@@ -61,6 +71,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if not equipped:
+		return
 	_cooldown = maxf(_cooldown - delta, 0.0)
 
 	if Input.is_action_just_pressed("reload"):

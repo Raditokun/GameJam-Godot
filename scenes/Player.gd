@@ -72,9 +72,18 @@ extends CharacterBody3D
 @onready var collision_shape: CollisionShape3D = $CollisionShape3D
 @onready var mesh: MeshInstance3D = $MeshInstance3D
 @onready var stats_label: Label = $HUD/StatsLabel
+# Weapon slots in order: slot 1, slot 2. Reached with $ rather than exported
+# NodePaths because both live inside this scene; node exports only resolve when
+# the .tscn carries a node_paths= marker, which is easy to lose by hand.
+@onready var weapons: Array[Node3D] = [
+	$Head/Camera3D/Pistol,
+	$Head/Camera3D/Sword,
+]
 
 var _pitch := 0.0
 var _crouching := false
+# Index into `weapons` of the weapon currently in hand.
+var _slot := 0
 # True once the current jump/ground-contact has already played its SFX, so the
 # sound fires once per hop instead of every physics frame Space is held.
 var _jumped := false
@@ -110,6 +119,9 @@ func _ready() -> void:
 	_stand_hull = CapsuleShape3D.new()
 	_stand_hull.radius = _capsule.radius
 	_stand_hull.height = _stand_height
+	# Start on slot 1. This also drives the initial visibility of both weapons,
+	# overriding whatever `visible` the scene was saved with.
+	equip(0)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -124,6 +136,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		var limit := deg_to_rad(pitch_limit_deg)
 		_pitch = clampf(_pitch - event.relative.y * look, -limit, limit)
 		head.rotation.x = _pitch
+
+	# Weapon slots: number keys select directly, the wheel cycles. Handled here
+	# rather than in _physics_process so a quick tap can never be missed, and so
+	# switching is dead while the settings menu has the tree paused.
+	if event.is_action_pressed("slot_1"):
+		equip(0)
+	elif event.is_action_pressed("slot_2"):
+		equip(1)
+	elif event.is_action_pressed("slot_next"):
+		equip(_slot + 1)
+	elif event.is_action_pressed("slot_prev"):
+		equip(_slot - 1)
 
 
 func _physics_process(delta: float) -> void:
@@ -189,6 +213,17 @@ func _process(_delta: float) -> void:
 		rad_to_deg(head.rotation.z),
 		_gain_pct,
 	]
+
+
+## Puts exactly one weapon in the player's hands: the equipped one shows itself
+## and reads fire input, the rest hide and go inert. The index wraps, so cycling
+## with the wheel runs off either end back around.
+func equip(slot: int) -> void:
+	if weapons.is_empty():
+		return
+	_slot = wrapi(slot, 0, weapons.size())
+	for i in weapons.size():
+		weapons[i].equipped = i == _slot
 
 
 ## Crouch handling: while the crouch action is held the capsule + camera duck

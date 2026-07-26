@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://cib6j6n4vam5n"]
+
+[ext_resource type="PackedScene" uid="uid://bl7dqlvevpnyg" path="res://3DModels/катана скетчфаб.blend" id="1_ycbs3"]
+[ext_resource type="Script" path="res://scenes/Sword.gd" id="2_sword"]
+
+[node name="Sword" type="Node3D" unique_id=589333674]
+script = ExtResource("2_sword")
+
+[node name="катана скетчфаб" parent="." unique_id=306537705 instance=ExtResource("1_ycbs3")]
+transform = Transform3D(0.06, 0, 0, 0, 0.06, 0, 0, 0, 0.06, 0, 0.035, 0)

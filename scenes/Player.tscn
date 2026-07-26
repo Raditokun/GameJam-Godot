@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://jr78w6ypf3mu" path="res://scenes/Player.gd" id="1_player"]
 [ext_resource type="AudioStream" uid="uid://b7bkuar200rr2" path="res://Sounds/Jumping trimed.mp3" id="2_v6fml"]
+[ext_resource type="PackedScene" uid="uid://cib6j6n4vam5n" path="res://scenes/sword.tscn" id="3_70d11"]
 [ext_resource type="PackedScene" path="res://scenes/Pistol.tscn" id="3_pistol"]
 [ext_resource type="Script" uid="uid://b27tw8meflmor" path="res://scenes/Crosshair.gd" id="4_crosshair"]
 [ext_resource type="PackedScene" path="res://scenes/SettingsMenu.tscn" id="5_settings"]
@@ -40,8 +41,13 @@ target_position = Vector3(0, 0, -100)
 
 [node name="Pistol" parent="Head/Camera3D" unique_id=295870913 node_paths=PackedStringArray("ray", "ammo_label") instance=ExtResource("3_pistol")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, -0.2, -0.45)
+visible = false
 ray = NodePath("../RayCast3D")
 ammo_label = NodePath("../../../HUD/AmmoLabel")
+
+[node name="Sword" parent="Head/Camera3D" unique_id=589333674 node_paths=PackedStringArray("ray") instance=ExtResource("3_70d11")]
+transform = Transform3D(0.04230263, -0.021259945, -1.5042552, -0.18338543, 1.4935545, -0.02626587, 1.4931864, 0.18403296, 0.039390378, 0.395, -0.555, -0.55)
+ray = NodePath("../RayCast3D")
 
 [node name="jump" type="AudioStreamPlayer3D" parent="." unique_id=76217393]
 stream = ExtResource("2_v6fml")
