@@ -35,20 +35,20 @@ use_collision = true
 size = Vector3(50, 1, 50)
 material = SubResource("Material_floor")
 
-[node name="JumpBlock3" type="CSGBox3D" parent="Floor" unique_id=991480514]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.9414887, 2.1567993, 13.151535)
+[node name="JumpBlock9" type="CSGBox3D" parent="." unique_id=991480514]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.9414887, 1.6567993, 13.151535)
 use_collision = true
 size = Vector3(3, 4.3135986, 3)
 material = SubResource("Material_obstacle")
 
-[node name="JumpBlock4" type="CSGBox3D" parent="Floor" unique_id=1004336883]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2388473, 2.1567993, 15.383065)
+[node name="JumpBlock8" type="CSGBox3D" parent="." unique_id=1004336883]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2388473, 1.6567993, 15.383065)
 use_collision = true
 size = Vector3(3, 4.3135986, 3)
 material = SubResource("Material_obstacle")
 
-[node name="JumpBlock3" type="CSGBox3D" parent="Floor/JumpBlock4" unique_id=580943840]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.440802, 1.2652283, -9.929227)
+[node name="JumpBlock7" type="CSGBox3D" parent="." unique_id=580943840]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.679649, 2.9220276, 5.4538383)
 use_collision = true
 size = Vector3(3, 6.0967407, 3)
 material = SubResource("Material_obstacle")
@@ -117,19 +117,19 @@ material = SubResource("Material_floor")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 
 [node name="JumpBlock4" type="CSGBox3D" parent="." unique_id=551563133]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.901151, 2.8660173, 10.561366)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.901151, 2.5890746, 10.561366)
 use_collision = true
-size = Vector3(3, 5.3017273, 3)
+size = Vector3(3, 4.493149, 3)
 material = SubResource("Material_obstacle")
 
-[node name="JumpBlock3" type="CSGBox3D" parent="JumpBlock4" unique_id=1830592018]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5899205, 2.1567993, 5.9787607)
+[node name="JumpBlock5" type="CSGBox3D" parent="." unique_id=1830592018]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.6301775, 2.1928413, 16.609932)
 use_collision = true
 size = Vector3(3, 4.3135986, 3)
 material = SubResource("Material_obstacle")
 
-[node name="JumpBlock3" type="CSGBox3D" parent="JumpBlock4/JumpBlock3" unique_id=1316286902]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.7614193, 2.1567993, -5.8821907)
+[node name="JumpBlock6" type="CSGBox3D" parent="." unique_id=1316286902]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.653555, 2.1659036, 9.342944)
 use_collision = true
 size = Vector3(3, 4.3135986, 3)
 material = SubResource("Material_obstacle")

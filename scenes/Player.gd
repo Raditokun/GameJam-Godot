@@ -13,7 +13,8 @@ extends CharacterBody3D
 
 # --- Look ---
 @export_group("Look")
-## Radians of rotation per pixel of mouse movement.
+## Radians of rotation per pixel of mouse movement, at the settings menu's
+## default sensitivity of 1.0. The menu scales this rather than replacing it.
 @export var mouse_sensitivity := 0.003
 ## Maximum up/down look angle. Source clamps pitch to ~89 degrees.
 @export_range(0.0, 90.0, 0.1) var pitch_limit_deg := 89.0
@@ -23,6 +24,10 @@ extends CharacterBody3D
 @export_group("Movement")
 ## Target ground speed. Source: sv_maxspeed (~250 u/s).
 @export var max_speed := 7.0
+## Target speed while the walk key (Shift) is held. Source: +speed / cl_forwardspeed
+## halving. Like Source this also damps air acceleration, so shift-strafing
+## gains less speed -- that's authentic, not a bug.
+@export var walk_speed := 3.5
 ## Ground acceleration multiplier. Source: sv_accelerate.
 @export var ground_accel := 10.0
 ## Ground friction. Source: sv_friction.
@@ -109,27 +114,28 @@ func _ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		# The settings slider scales the scene's authored sensitivity. Typed
+		# explicitly so a missing GameSettings autoload reports one clear error
+		# rather than also failing type inference here.
+		var look: float = mouse_sensitivity * GameSettings.sensitivity
 		# Yaw turns the whole body so the placeholder model faces where you look.
-		rotate_y(-event.relative.x * mouse_sensitivity)
+		rotate_y(-event.relative.x * look)
 		# Pitch tilts only the head/camera, clamped like a real Source client.
 		var limit := deg_to_rad(pitch_limit_deg)
-		_pitch = clampf(_pitch - event.relative.y * mouse_sensitivity, -limit, limit)
+		_pitch = clampf(_pitch - event.relative.y * look, -limit, limit)
 		head.rotation.x = _pitch
-
-	# Escape releases the mouse; handy while testing.
-	if event.is_action_pressed("ui_cancel"):
-		Input.mouse_mode = (
-			Input.MOUSE_MODE_VISIBLE
-			if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
-			else Input.MOUSE_MODE_CAPTURED
-		)
 
 
 func _physics_process(delta: float) -> void:
 	_update_crouch(delta)
 
 	var grounded := is_on_floor()
-	var speed := crouch_speed if _crouching else max_speed
+	# Crouch outranks walk, so ducking while holding Shift stays crouch-speed.
+	var speed := max_speed
+	if _crouching:
+		speed = crouch_speed
+	elif Input.is_action_pressed("walk"):
+		speed = walk_speed
 	var wish_dir := _get_wish_direction()
 	var wants_jump := (
 		Input.is_action_pressed("jump")

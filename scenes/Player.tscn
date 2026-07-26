@@ -3,6 +3,8 @@
 [ext_resource type="Script" uid="uid://jr78w6ypf3mu" path="res://scenes/Player.gd" id="1_player"]
 [ext_resource type="AudioStream" uid="uid://b7bkuar200rr2" path="res://Sounds/Jumping trimed.mp3" id="2_v6fml"]
 [ext_resource type="PackedScene" path="res://scenes/Pistol.tscn" id="3_pistol"]
+[ext_resource type="Script" uid="uid://b27tw8meflmor" path="res://scenes/Crosshair.gd" id="4_crosshair"]
+[ext_resource type="PackedScene" path="res://scenes/SettingsMenu.tscn" id="5_settings"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.4
@@ -36,14 +38,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
 [node name="RayCast3D" type="RayCast3D" parent="Head/Camera3D" unique_id=634501365]
 target_position = Vector3(0, 0, -100)
 
-[node name="Pistol" parent="Head/Camera3D" unique_id=295870913 instance=ExtResource("3_pistol")]
+[node name="Pistol" parent="Head/Camera3D" unique_id=295870913 node_paths=PackedStringArray("ray", "ammo_label") instance=ExtResource("3_pistol")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, -0.2, -0.45)
 ray = NodePath("../RayCast3D")
 ammo_label = NodePath("../../../HUD/AmmoLabel")
 
 [node name="jump" type="AudioStreamPlayer3D" parent="." unique_id=76217393]
 stream = ExtResource("2_v6fml")
-volume_db = -7.477
+volume_db = -25.421
 
 [node name="HUD" type="CanvasLayer" parent="." unique_id=513739344]
 
@@ -80,3 +82,19 @@ theme_override_constants/outline_size = 6
 theme_override_font_sizes/font_size = 30
 horizontal_alignment = 2
 vertical_alignment = 2
+
+[node name="Crosshair" type="Control" parent="HUD" unique_id=1440249042]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("4_crosshair")
+stroke_length = 5.0
+thickness = 1.0
+center_dot = false
+color = Color(0.7621213, 0.8401127, 1, 0.9019608)
+
+[node name="SettingsMenu" parent="." unique_id=669604588 instance=ExtResource("5_settings")]
