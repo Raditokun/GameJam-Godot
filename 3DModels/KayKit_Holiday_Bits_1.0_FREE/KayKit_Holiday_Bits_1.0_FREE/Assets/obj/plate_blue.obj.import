@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://b41o1cveor7fs"
+path="res://.godot/imported/plate_blue.obj-4ead6a0ce04cacdc5a2e532e386df586.mesh"
+
+[deps]
+
+files=["res://.godot/imported/plate_blue.obj-4ead6a0ce04cacdc5a2e532e386df586.mesh"]
+
+source_file="res://3DModels/KayKit_Holiday_Bits_1.0_FREE/KayKit_Holiday_Bits_1.0_FREE/Assets/obj/plate_blue.obj"
+dest_files=["res://.godot/imported/plate_blue.obj-4ead6a0ce04cacdc5a2e532e386df586.mesh", "res://.godot/imported/plate_blue.obj-4ead6a0ce04cacdc5a2e532e386df586.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

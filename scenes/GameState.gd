@@ -41,6 +41,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		start_action()
 	elif event.is_action_pressed("restart_round") and phase == Phase.ACTION:
 		reset_round()
+	elif event.is_action_pressed("toggle_action_phase"):
+		# Enter flips whichever way the round currently is -- a test shortcut for
+		# bouncing in and out of the fight without reaching for two keys.
+		if phase == Phase.PREPARATION:
+			start_action()
+		else:
+			reset_round()
 
 
 ## Locks the layout in and starts the fight.

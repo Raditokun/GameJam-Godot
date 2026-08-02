@@ -51,6 +51,8 @@ phase the round is in rather than wiring node paths between scenes.
 - `Phase.PREPARATION` / `Phase.ACTION`, `is_preparation()`, `is_action()`.
 - `start_action()` (F) locks the layout in; `reset_round()` (G, and later death
   / a breached defense) returns to Preparation and increments `attempt`.
+  **Enter** (`toggle_action_phase`) flips whichever way the round currently is —
+  a test shortcut for bouncing in and out of the fight on one key.
 - Signals `phase_changed(new_phase)` and `round_reset`.
 - `process_mode = PROCESS_MODE_ALWAYS` so the phase keys work regardless of
   what else is swallowing input.
@@ -77,7 +79,15 @@ early during PREPARATION, so click / wheel / reach all belong to BuildMode.
   the scale carries a slight tilt, so the surface drifts ~0.15 across the bench.
 - `PrepCamera` (Camera3D + `PrepCamera.gd`) with a `MouseRay` (RayCast3D) child
   — the Preparation Phase tactical view. See §2b.
-- `bowl_dirty2` — the drag-and-drop test object. A **fully dynamic**
+- **~500 converted props** — the maze-building clutter (crates, furniture, food,
+  ore, tunnel pieces…), all direct children of the root. Each is a
+  `RigidBody3D` in groups `draggable` + `navmesh_source` with a `Model` child,
+  a box `CollisionShape3D` and a `NavigationObstacle3D`, produced by the bulk
+  converter in §2e. **They are frozen** (`FREEZE_MODE_KINEMATIC`) and their
+  obstacle avoidance is off; `PrepCamera` thaws and un-mutes exactly the one
+  being dragged. See §2e for the measurements behind both decisions.
+- `bowl_dirty2` — the original drag-and-drop test object, deliberately left
+  **fully dynamic** (unfrozen) as the reference the props were tuned against. A
   `RigidBody3D` (mass 3, friction 0.55, bounce 0.1, `continuous_cd`) in the
   `draggable` group, holding
   the gltf as a `Model` child plus a `CollisionShape3D` (CylinderShape3D,
@@ -86,6 +96,9 @@ early during PREPARATION, so click / wheel / reach all belong to BuildMode.
   scale on the physics body itself makes for a scaled collider, which Jolt
   handles badly. The body stays at scale 1 and the shape is sized in world units.
 - `Player` — instance of `Player.tscn`, above the bench.
+- `Navigation` (NavigationRegion3D + `NavBaker.gd`) with its `NavSurface` child,
+  `EnemyGoal` (Marker3D, group `enemy_goal`) and an `Enemy` instance — the
+  pathfinding prototype. See §2d.
 
 Obstacle scripting (`Obstacle.gd`, `BuildMode.gd`, §2c) still exists but has no
 nodes in `Main.tscn` right now — the block layout was reverted while the drag
@@ -144,7 +157,19 @@ tactical view of the bench, plus the mouse drag-and-drop tool that goes with it.
 - Draggables are found by **group** (`draggable`), not node path — tagging more
   clutter is all that is needed to extend this past the bowl. They must be
   `RigidBody3D`; the spring has nothing to push on otherwise.
-- Other tunables: `drag_group`, `pick_distance` (900).
+- **Grabbing thaws, releasing re-freezes.** Converted props sit frozen so 500 of
+  them cost nothing; `_try_grab()` sets `freeze = false` (a frozen body ignores
+  the carry spring entirely) and `_drop()` does **not** freeze on the spot —
+  that would stop a thrown prop dead in mid-air. Released props go into
+  `_settling`, and `_update_settling()` freezes each one after it has held still
+  (under `refreeze_speed` 1.5) for `refreeze_delay` 0.4 s. `_was_frozen` records
+  how the prop was found, so the always-dynamic bowl is handed back unfrozen.
+  Settling runs before the `current` check, so a prop thrown just before lock-in
+  still finishes and freezes itself.
+- **Grabbing also switches that prop's RVO avoidance on, and release switches it
+  off** — see the cost measurement in §2e.
+- Other tunables: `drag_group`, `pick_distance` (900), `refreeze_speed`,
+  `refreeze_delay`.
 
 ### `scenes/Player.tscn` (`CharacterBody3D`, script `Player.gd`)
 ```
@@ -217,6 +242,175 @@ katana model in `3DModels/`)
   attacks can't strand the blade off-pose.
 - Also needs `node_paths=PackedStringArray("ray")` on its `[node]` entry in
   `Player.tscn`.
+
+### 2d. Navigation & the Enemy Prototype
+
+Two independent layers handle the clutter, covering different moments:
+**navmesh carving** re-routes the path once an object is put down, and
+**agent avoidance (RVO)** steers around it in real time while it is still being
+dragged and the mesh has not caught up.
+
+**`Main.tscn/Navigation`** — `NavigationRegion3D` running `scenes/NavBaker.gd`.
+- Bake source is **`NavSurface`**, a `StaticBody3D` (collision layer 512,
+  mask 0) with a 212 × 2 × 138 box whose top face sits exactly on the tabletop.
+  A dedicated layer nothing else masks means it never collides with anything —
+  it exists only to be baked.
+- The NavigationMesh uses `parsed_geometry_type = STATIC_COLLIDERS` with
+  `geometry_collision_mask = 512`. Parsing **colliders, not mesh instances**, is
+  required for runtime re-baking: Godot warns that pulling visual meshes back
+  off the GPU each bake blocks rendering.
+- `source_geometry_mode = GROUPS_WITH_CHILDREN` on group `navmesh_source`.
+  **Not `GROUPS_EXPLICIT`** — explicit mode visits only the exact grouped nodes
+  and never their children, so the bowl's `NavigationObstacle3D` child was
+  invisible to the parser and nothing was ever carved.
+- `NavBaker.gd` watches every body in the `draggable` group and re-bakes once a
+  moved body has been still for `settle_time` (0.25 s), floored to one bake per
+  `min_interval` (0.5 s). Debounced deliberately — a bake is far too expensive
+  per-frame during a drag, and re-cutting for a position about to change again
+  is wasted work. First bake is synchronous so the enemy has a path on frame 1;
+  later ones are threaded. Tunables: `watch_group`, `move_threshold` (1.5),
+  `settle_time`, `min_interval`. Emits `navmesh_rebaked`.
+
+**`bowl_dirty2/NavigationObstacle3D`** — carves the bowl out of the navmesh.
+- **The carve uses the `vertices` outline, NOT `radius`.** `radius` drives RVO
+  avoidance only; leaving `vertices` empty bakes a mesh with no hole in it and
+  looks exactly like carving is broken. It is set to a 10-unit octagon.
+- `affect_navigation_mesh` + `carve_navigation_mesh` both on.
+- The bowl is in group `navmesh_source` so the parser reaches this child. Its
+  own collider is on layer 1 and therefore filtered out by the bake mask, so it
+  contributes an obstacle without contributing walkable floor.
+
+**`scenes/Enemy.tscn` / `Enemy.gd`** — `CharacterBody3D` capsule (r 0.4, h 1.8,
+red) with a `NavigationAgent3D` (avoidance on, agent radius 1.2).
+- **Patrols a looping circuit** — every Node3D in the `enemy_goal` group is a
+  stop, walked in tree order, wrapping at the end so it never runs out of
+  somewhere to be. With a single marker the enemy's own spawn point is added as
+  the second stop, so one marker still yields a there-and-back loop rather than
+  a dead end; add a second marker and the circuit becomes those two (the
+  implicit spawn stop drops out). Group lookup rather than an exported node
+  reference — see the `node_paths` gotcha in §5.
+- The route is rebuilt as it is walked, so a marker dragged to a new spot is
+  followed without restarting the round.
+- A stop counts as reached within `arrive_distance` (4.0), compared on the
+  horizontal plane only — the markers sit on the tabletop while the capsule's
+  origin rides at its feet, and that height gap should not stop it counting as
+  arrived. On arrival the repath wait is skipped so the next leg starts on the
+  very next frame and there is no visible pause at a corner.
+- `waypoint_timeout` (20 s) gives up on a stop and moves to the next one, so a
+  waypoint walled in by the player's clutter cannot stall the patrol forever.
+- With avoidance on, the desired velocity goes to `agent.velocity` and the move
+  happens in the `velocity_computed` callback. Both the arrived and moving cases
+  funnel through the same call so `move_and_slide()` runs **exactly once** per
+  physics frame.
+- This is a pathfinding/aggro testbed, not the shipping enemy — the patrol leg
+  stands in for the hidden "Order in Disorder" rule the real ones will follow.
+
+**Phase gating.** `is_action_phase` mirrors `GameState` (the global manager owns
+the real phase; the flag is kept local so the enemy can be driven standalone in
+tests). The whole of `_physics_process` is gated on it: during PREPARATION the
+enemy neither moves nor looks, and entering PREPARATION resets it to PATROL and
+returns it to its spawn transform, so every retry runs from the same setup.
+
+**Aggro — the "Order in Disorder" twist.** Two conditions, both required:
+- `DetectionArea` (Area3D, sphere r 45, layer 0 / mask 1) reports the player —
+  found by the `player` group, which `Player.tscn`'s root now carries.
+- `SightRay` (RayCast3D at `eye_height` 1.5) reaches the player's chest
+  unblocked. Anything else the ray hits first — the bowl, a wall — denies aggro.
+  **Standing behind clutter is therefore cover even at point-blank range**,
+  which is the entire point of the mechanic.
+
+`has_line_of_sight()` also range-checks explicitly instead of trusting Area3D
+membership: enter/exit resolves once per physics frame, so a player who leaves
+is still "inside" for one frame — and since the ray is aimed at them *wherever
+they are*, that single frame was enough to aggro clean across the bench. The
+range is read off the DetectionArea's sphere in `_ready()`, so the radius
+visible in the editor is the one the logic uses (`aggro_range` is only a
+fallback).
+
+On aggro the enemy abandons the goal marker and re-points the agent at the
+player every `chase_repath_interval` (0.2 s), moving at `chase_speed_scale`
+(1.25×). Losing sight does not drop it instantly — `aggro_memory` (2 s) keeps
+the chase alive, without which the state flickers every time the player clips an
+obstacle edge. Emits `aggro_changed(chasing)`; `is_chasing()` reports state.
+- Tunables: `move_speed` (25), `chase_speed_scale`, `turn_speed`, `gravity`,
+  `goal_group`, `goal_position`, `arrive_distance`, `waypoint_timeout`,
+  `repath_interval` (0.4), `player_group`, `aggro_range`, `eye_height`,
+  `target_height`, `aggro_memory`, `chase_repath_interval`.
+
+Measured (navigation): 169 units of bench, clear run arrives in 370 frames dead
+straight (0.0 lateral stray); with the bowl parked mid-path it arrives in 386
+frames, detours 11.2 units sideways, and never gets closer than 11.1 units to
+the bowl centre (the bowl's own radius is 7.9).
+
+Measured (patrol loop): 40 s of patrol covers 1000 units at a sustained
+25 u/s with 5 direction reversals, a longest stall of 0.00 s, and the enemy
+still moving at the end. After an aggro detour the circuit resumes on its own.
+
+Measured (aggro): inert in PREPARATION with the player 8 units away (0.00 units
+moved); patrols to the goal when the player is out of range; player 30 units
+away with the bowl on the sightline gives `line_of_sight=false` and the ray
+reports hitting `bowl_dirty2`, so it keeps patrolling; move the bowl aside and
+it switches to CHASE, retargets onto the player and closes 20.6 → 2.4 units in
+1.5 s; teleport the player away and it holds the chase through `aggro_memory`
+then drops back to PATROL.
+
+### 2e. Bulk Prop Conversion (`tools/`)
+
+`tools/BulkPropSetup.gd` (an `EditorScript`, run with **File → Run** in the
+script editor) wraps `tools/PropConverter.gd`, which holds the logic. The split
+exists because **`EditorScript` refuses to instantiate outside the editor**, so
+putting the logic there would make the whole conversion impossible to test
+headlessly; `PropConverter` is a plain `RefCounted` a probe can drive.
+
+Turns every raw prop node dropped into `Main.tscn` into a `bowl_dirty2` clone:
+
+```
+PropName (RigidBody3D)   groups: draggable, navmesh_source, scale 1
+├── Model                the original node, keeps the authored scale
+├── CollisionShape3D     BoxShape3D from the union of the mesh AABBs
+└── NavigationObstacle3D octagon carve outline + height
+```
+
+- Candidates are chosen **by type, not name** — anything already a
+  `CollisionObject3D`, or a `CSGShape3D` / `Camera3D` / `Light3D` / `Marker3D` /
+  `NavigationRegion3D` / `WorldEnvironment`, is skipped. That covers Player,
+  Enemy, meja, bowl_dirty2, PrepCamera, EnemyGoal, Navigation, Floor, Ramp and
+  the stairs without hard-coding a single one. Re-running is safe.
+- The AABB is measured in the **body's** frame, not world space, so a rotated
+  prop gets a tight box instead of one inflated by its own rotation.
+- `mass = volume * DENSITY` clamped to [0.5, 60], with DENSITY calibrated so the
+  bowl's box lands on the 3.0 that was hand-tuned for it. Big props hit the
+  clamp — that is deliberate, it keeps the solver sane.
+- Child nodes are **named explicitly**: `add_child()` on an unnamed node
+  generates the `@CollisionShape3D@12` form, which is unreadable in the tree and
+  unfindable by `get_node()`.
+- Nodes only survive a save if the scene root `owner`s them; recursion stops at
+  an instance boundary, since instanced scenes own their own internals.
+
+**Two settings are performance-critical, both measured on the real 500-prop
+bench (60 fps budget is 16.7 ms per physics frame):**
+
+| Configuration | ms/frame |
+|---|---|
+| Dynamic props, obstacle avoidance on | 63.7 |
+| Frozen props, avoidance on | 34.8 |
+| Frozen props, **avoidance off** | **16.7** |
+
+- **Freeze.** 500 free rigid bodies resting on the bench never actually sleep —
+  250 stayed awake indefinitely with only 3 genuinely moving. Frozen, all of
+  them sleep. Continuous CD turned out to be irrelevant either way (63.70 vs
+  62.96), so the churn was contact resolution, not CCD.
+- **Obstacle avoidance off.** Every `NavigationObstacle3D` with
+  `avoidance_enabled` joins the RVO simulation every frame; 500 of them cost
+  more than all the rest of the physics combined. Carving is what actually
+  routes the enemy, so avoidance is only needed for the single prop mid-drag —
+  `PrepCamera` toggles it per grab.
+
+Measured on the live scene: 503 props, 502 frozen, 503 fully structured;
+16.68 ms/frame; navmesh re-bake 31 ms producing 1837 polygons; the enemy still
+finds a 25-corner route across the cluttered bench; and a full drag cycle on the
+fridge (mass 20.5) thaws it, hauls it 14.7 units at 35.6° of lean, then
+re-freezes it once it comes to rest.
 
 ### 2c. Obstacles & the First-Person Build Tool
 
@@ -303,7 +497,8 @@ build tool, in ACTION they drive the weapons.
 | Action | Input | Notes |
 |---|---|---|
 | `lock_in` | F | Preparation → Action. Locks the layout in |
-| `restart_round` | G | Action → Preparation. Keeps the layout, resets the player |
+| `restart_round` | G | Action → Preparation. Keeps the layout, resets the player and the enemy |
+| `toggle_action_phase` | Enter | Flips whichever phase is current — test shortcut |
 | `move_forward` / `move_back` | W / S | |
 | `move_left` / `move_right` | A / D | |
 | `jump` | Space | Held for auto-bhop when `auto_bhop = true` |
@@ -355,6 +550,32 @@ editing the relevant section above over appending a changelog.
   there forever, looking like the righting code is broken. Normalise the axis
   and scale it by the lean **angle** instead, and special-case the exactly
   inverted pose (any horizontal axis will start it falling back).
+- **`NavigationObstacle3D.avoidance_enabled` is on by default and is not free.**
+  Every enabled obstacle joins the RVO simulation each frame whether or not any
+  agent is near it. At 500 obstacles that measured 34.8 ms/frame against a
+  16.7 ms budget — more than everything else in the scene put together. Leave it
+  off for static clutter and switch it on only for something actually moving.
+- **Hundreds of resting `RigidBody3D`s never go to sleep.** 500 props settled on
+  the bench left ~250 permanently awake with only 3 actually moving, at 63 ms a
+  frame. If props are meant to stay put, freeze them (`FREEZE_MODE_KINEMATIC`)
+  and thaw individually — do not rely on sleep to save you.
+- **`global_transform` on a node that was instantiated but never added to the
+  tree** errors with `Condition "!is_inside_tree()" is true` and silently
+  returns identity. Read `transform` instead when inspecting a scene loaded
+  purely to compare against.
+- **`NavigationObstacle3D` carves the navmesh with `vertices`, not `radius`.**
+  `radius` only feeds RVO avoidance. With `affect_navigation_mesh = true` but an
+  empty `vertices` outline, the bake completes cleanly and produces a mesh with
+  no hole in it — no error, no warning, and the agent happily paths straight
+  through the obstacle.
+- **`SOURCE_GEOMETRY_GROUPS_EXPLICIT` does not visit children.** A navmesh bake
+  in explicit mode parses only the exact nodes in the group, so an obstacle or
+  collider parented under a grouped node is silently skipped. Use
+  `GROUPS_WITH_CHILDREN` when the thing to parse is a child.
+- **Bake from colliders, not mesh instances, if you re-bake at runtime.**
+  `PARSED_GEOMETRY_MESH_INSTANCES` reads geometry back off the GPU and Godot
+  warns that it blocks rendering. `PARSED_GEOMETRY_STATIC_COLLIDERS` plus a
+  dedicated collision layer for the bake surface avoids it entirely.
 - **In a hand-written `.tscn`, the 12-number `Transform3D(...)` sets basis
   ROWS, not columns.** Writing the columns gives you the transpose — for a
   rotation that is the inverse, so a camera pitched to look down at the table

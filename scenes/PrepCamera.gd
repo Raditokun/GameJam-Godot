@@ -58,6 +58,14 @@ extends Camera3D
 ## slows down on its own.
 @export var spin_impulse := 45.0
 
+@export_group("Settling")
+## Combined linear + angular speed below which a released prop counts as at
+## rest and is eligible to be frozen again.
+@export var refreeze_speed := 1.5
+## Seconds a released prop must stay at rest before it is frozen. Long enough
+## that a thrown prop finishes its tumble first.
+@export var refreeze_delay := 0.4
+
 @onready var ray: RayCast3D = $MouseRay
 
 ## The body currently being dragged, or null. Everything else reads this to
@@ -77,6 +85,12 @@ var _grab_local := Vector3.ZERO
 var _target := Vector3.ZERO
 ## Gravity restored on release; a held object hangs on the spring alone.
 var _rest_gravity_scale := 1.0
+## Whether the held prop was frozen before it was picked up, so release can put
+## it back the way it was found. Converted props are frozen; the bowl is not.
+var _was_frozen := false
+## Released props still coming to rest, mapped to how long they have been still.
+## Once a prop settles it is frozen again -- see _update_settling().
+var _settling := {}
 
 
 func _ready() -> void:
@@ -91,6 +105,9 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# Runs regardless of which camera is current: a prop thrown just before
+	# lock-in still has to finish settling and freeze itself.
+	_update_settling(delta)
 	if not current:
 		return
 	_aim_at_cursor()
@@ -142,7 +159,17 @@ func _try_grab() -> void:
 	# the spring has to fight, and it comes back the instant it is let go.
 	_rest_gravity_scale = body.gravity_scale
 	body.gravity_scale = 0.0
+	# Props sit frozen so 500 of them cost nothing; thaw this one for as long as
+	# it is in hand, or the carry spring would have nothing to push on.
+	_was_frozen = body.freeze
+	body.freeze = false
 	body.sleeping = false
+	# It is being carried, not settling.
+	_settling.erase(body.get_instance_id())
+	# Switch this one prop into the avoidance simulation while it is in hand, so
+	# the enemy dodges it live instead of waiting for the navmesh to re-bake.
+	# Left off for the other 500, which would cost more than all other physics.
+	_set_avoidance(body, true)
 	# Excluding the body from the ray (rather than switching its collision off)
 	# means it keeps colliding with everything else and the exclusion takes
 	# effect immediately -- collision layer changes have to be deferred.
@@ -157,6 +184,11 @@ func _drop() -> void:
 		# Let go: gravity comes back and whatever momentum and spin the drag
 		# built up carries into the fall, so a flung object really is flung.
 		_dragged.gravity_scale = _rest_gravity_scale
+		_set_avoidance(_dragged, false)
+		if _was_frozen:
+			# Do NOT freeze on the spot -- that would stop a thrown prop dead in
+			# mid-air. It re-freezes once it has come to rest by itself.
+			_settling[_dragged.get_instance_id()] = 0.0
 	_dragged = null
 
 
@@ -192,6 +224,39 @@ func _update_drag(_delta: float) -> void:
 
 	if upright_torque > 0.0:
 		_dragged.apply_torque(_upright_torque_for(_dragged) * mass)
+
+
+## Toggles a prop's RVO avoidance, if it has an obstacle child at all.
+func _set_avoidance(body: PhysicsBody3D, enabled: bool) -> void:
+	for child in body.get_children():
+		var obstacle := child as NavigationObstacle3D
+		if obstacle != null:
+			obstacle.avoidance_enabled = enabled
+
+
+## Watches released props and freezes each one once it stops moving, handing the
+## bench back to the cheap all-frozen state. Without this every prop the player
+## ever touched would stay awake for the rest of the round.
+func _update_settling(delta: float) -> void:
+	if _settling.is_empty():
+		return
+	var finished: Array = []
+	for id in _settling:
+		var body := instance_from_id(id) as RigidBody3D
+		if body == null or not is_instance_valid(body) or body == _dragged:
+			finished.append(id)
+			continue
+		var speed := body.linear_velocity.length() + body.angular_velocity.length()
+		if speed > refreeze_speed:
+			_settling[id] = 0.0
+			continue
+		var still: float = float(_settling[id]) + delta
+		_settling[id] = still
+		if still >= refreeze_delay:
+			body.freeze = true
+			finished.append(id)
+	for id in finished:
+		_settling.erase(id)
 
 
 ## Torque that rolls a body back level, plus its damping.

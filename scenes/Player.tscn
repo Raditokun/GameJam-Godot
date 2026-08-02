@@ -20,7 +20,7 @@ height = 1.8
 albedo_color = Color(0.3, 0.55, 0.9, 1)
 roughness = 0.7
 
-[node name="Player" type="CharacterBody3D" unique_id=1158772429]
+[node name="Player" type="CharacterBody3D" unique_id=1158772429 groups=["player"]]
 script = ExtResource("1_player")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=2106776938]
@@ -60,6 +60,7 @@ volume_db = -25.421
 [node name="HUD" type="CanvasLayer" parent="." unique_id=513739344]
 
 [node name="StatsLabel" type="Label" parent="HUD" unique_id=1801439489]
+visible = false
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
@@ -75,6 +76,7 @@ theme_override_font_sizes/font_size = 16
 vertical_alignment = 2
 
 [node name="AmmoLabel" type="Label" parent="HUD" unique_id=493971292]
+visible = false
 anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
