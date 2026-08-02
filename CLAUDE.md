@@ -162,8 +162,12 @@ tactical view of the bench, plus the mouse drag-and-drop tool that goes with it.
   the carry spring entirely) and `_drop()` does **not** freeze on the spot —
   that would stop a thrown prop dead in mid-air. Released props go into
   `_settling`, and `_update_settling()` freezes each one after it has held still
-  (under `refreeze_speed` 1.5) for `refreeze_delay` 0.4 s. `_was_frozen` records
-  how the prop was found, so the always-dynamic bowl is handed back unfrozen.
+  (under `refreeze_speed` 1.5) for `refreeze_delay` 0.4 s, or unconditionally
+  after `refreeze_timeout` 4 s. The timeout is not optional: a cone-ish hull
+  like a christmas tree creeps along the bench's slight tilt at just above the
+  rest threshold forever, and one prop left awake is the per-frame cost that
+  freezing everything was meant to remove. `_was_frozen` records how the prop
+  was found, so the always-dynamic bowl is handed back unfrozen.
   Settling runs before the `current` check, so a prop thrown just before lock-in
   still finishes and freezes itself.
 - **Grabbing also switches that prop's RVO avoidance on, and release switches it
@@ -367,9 +371,27 @@ Turns every raw prop node dropped into `Main.tscn` into a `bowl_dirty2` clone:
 ```
 PropName (RigidBody3D)   groups: draggable, navmesh_source, scale 1
 ├── Model                the original node, keeps the authored scale
-├── CollisionShape3D     BoxShape3D from the union of the mesh AABBs
+├── CollisionShape3D     ConvexPolygonShape3D hull, one per mesh
+├── CollisionShape3D2    (multi-part props get a compound collider)
 └── NavigationObstacle3D octagon carve outline + height
 ```
+
+- **Colliders are convex hulls, not boxes.** An axis-aligned box around
+  something irregular — a christmas tree, a rack, a pile of bars — is a huge
+  invisible barrier blocking the player and the enemy metres from anything they
+  can see. Measured against the old boxes, a hull reaches **30–37% closer** on a
+  christmas tree, 14% on a fridge, 8% on a streetlight. Convex specifically, not
+  concave/trimesh: a trimesh collider is static-only and illegal on a moving
+  RigidBody3D.
+- Each MeshInstance3D gets its own hull, so a multi-part prop follows its shape
+  instead of one hull swallowing the gaps between parts. 503 props currently
+  carry 550 hulls at ~29 points each.
+- `create_convex_shape(true, true)` returns points in **mesh** space. The body
+  is always scale 1 while the model keeps the authored scale, so every point is
+  transformed into body space — skip that and each hull comes out at 1/scale of
+  its real size.
+- A mesh that yields fewer than 4 hull points is not a solid; those fall back to
+  the AABB box rather than leaving the prop with no collider.
 
 - Candidates are chosen **by type, not name** — anything already a
   `CollisionObject3D`, or a `CSGShape3D` / `Camera3D` / `Light3D` / `Marker3D` /
@@ -406,11 +428,17 @@ bench (60 fps budget is 16.7 ms per physics frame):**
   routes the enemy, so avoidance is only needed for the single prop mid-drag —
   `PrepCamera` toggles it per grab.
 
-Measured on the live scene: 503 props, 502 frozen, 503 fully structured;
-16.68 ms/frame; navmesh re-bake 31 ms producing 1837 polygons; the enemy still
-finds a 25-corner route across the cluttered bench; and a full drag cycle on the
-fridge (mass 20.5) thaws it, hauls it 14.7 units at 35.6° of lean, then
-re-freezes it once it comes to rest.
+Measured on the live scene: 503 props, 502 on convex hulls (550 hulls), 502
+frozen, 503 fully structured; 16.68 ms/frame; navmesh re-bake 30 ms producing
+1818 polygons; the enemy still finds a 25-corner route across the cluttered
+bench; and a full drag cycle on a christmas tree thaws it, hauls it, then
+re-freezes it 0.5 s after release.
+
+**Known rough edge:** tall thin props (christmas trees, streetlights) tip a long
+way while dragged — a tighter hull is also a narrower one, so they tip more
+easily than they did on their old boxes. The restoring torque scales with mass
+but not with the body's actual inertia, which under-corrects tall shapes. Raise
+`upright_torque` or lower `tilt_arm` on `PrepCamera` if it reads badly.
 
 ### 2c. Obstacles & the First-Person Build Tool
 
@@ -550,6 +578,11 @@ editing the relevant section above over appending a changelog.
   there forever, looking like the righting code is broken. Normalise the axis
   and scale it by the lean **angle** instead, and special-case the exactly
   inverted pose (any horizontal axis will start it falling back).
+- **`Mesh.create_convex_shape()` returns points in MESH space.** If the physics
+  body is unscaled and the model child carries the scale (which is the pattern
+  here, because Jolt handles scaled colliders badly), every hull point must be
+  transformed into the body's space or the collider comes out at 1/scale — a
+  collider far too small, silently, with no error.
 - **`NavigationObstacle3D.avoidance_enabled` is on by default and is not free.**
   Every enabled obstacle joins the RVO simulation each frame whether or not any
   agent is near it. At 500 obstacles that measured 34.8 ms/frame against a

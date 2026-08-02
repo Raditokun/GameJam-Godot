@@ -121,16 +121,9 @@ func convert_prop(prop: Node3D, owner_root: Node) -> RigidBody3D:
 		maxf(local.size.z, MIN_EXTENT)
 	)
 
-	var box := BoxShape3D.new()
-	box.size = size
-	var shape := CollisionShape3D.new()
-	shape.shape = box
-	# Named explicitly: add_child() on an unnamed node generates the "@Class@12"
-	# form, which is unreadable in the scene tree and unfindable by get_node().
-	shape.name = "CollisionShape3D"
-	body.add_child(shape)
-	shape.owner = owner_root
-	shape.position = local.get_center()
+	for shape in build_collision_shapes(meshes, body, local, size):
+		body.add_child(shape)
+		shape.owner = owner_root
 
 	var obstacle := _build_obstacle(local, size)
 	obstacle.name = "NavigationObstacle3D"
@@ -162,6 +155,58 @@ func convert_prop(prop: Node3D, owner_root: Node) -> RigidBody3D:
 	body.add_to_group(DRAG_GROUP, true)
 	body.add_to_group(NAV_GROUP, true)
 	return body
+
+
+## Builds the collision shapes for one prop: a convex hull per mesh surface,
+## expressed in the body's own space.
+##
+## Convex, not a box: an axis-aligned box around something irregular -- a
+## Christmas tree, a rack, a pile of bars -- is a huge invisible barrier that
+## blocks the player and the enemy metres away from anything they can see.
+## Convex, not concave/trimesh: a trimesh collider is static-only and cannot be
+## used on a moving RigidBody3D at all.
+##
+## Each MeshInstance3D becomes its own hull, so a multi-part prop ends up with a
+## compound collider that follows its shape rather than one hull swallowing the
+## gaps between the parts.
+func build_collision_shapes(
+	meshes: Array[MeshInstance3D], body: Node3D, local: AABB, size: Vector3
+) -> Array[CollisionShape3D]:
+	var built: Array[CollisionShape3D] = []
+	var to_body := body.global_transform.affine_inverse()
+
+	for mesh_instance in meshes:
+		var hull: ConvexPolygonShape3D = mesh_instance.mesh.create_convex_shape(true, true)
+		if hull == null or hull.points.size() < 4:
+			# Degenerate hull (a flat plane, or a mesh Recast could not simplify).
+			# Anything under 4 points is not a solid, so fall back to a box.
+			continue
+		# create_convex_shape() returns points in MESH space. The body is always
+		# scale 1 while the model keeps the authored scale, so the points have to
+		# be brought across or every hull comes out at 1/scale of its real size.
+		var into_body := to_body * mesh_instance.global_transform
+		var points := hull.points
+		for i in points.size():
+			points[i] = into_body * points[i]
+		hull.points = points
+
+		var shape := CollisionShape3D.new()
+		shape.shape = hull
+		# Named explicitly: add_child() on an unnamed node generates the
+		# "@Class@12" form, unreadable in the tree and unfindable by get_node().
+		shape.name = "CollisionShape3D" if built.is_empty() else "CollisionShape3D%d" % (built.size() + 1)
+		built.append(shape)
+
+	if built.is_empty():
+		# No usable hull anywhere -- keep the prop solid with the AABB box.
+		var box := BoxShape3D.new()
+		box.size = size
+		var shape := CollisionShape3D.new()
+		shape.shape = box
+		shape.name = "CollisionShape3D"
+		shape.position = local.get_center()
+		built.append(shape)
+	return built
 
 
 ## Builds the navmesh carve outline: an octagon around the prop's footprint.

@@ -65,6 +65,12 @@ extends Camera3D
 ## Seconds a released prop must stay at rest before it is frozen. Long enough
 ## that a thrown prop finishes its tumble first.
 @export var refreeze_delay := 0.4
+## Hard ceiling on how long a released prop may stay awake, in seconds.
+## Some shapes never truly stop: a cone-ish hull like a christmas tree creeps
+## along the bench's slight tilt at just above `refreeze_speed` indefinitely,
+## and one prop left awake forever is exactly the per-frame cost that freezing
+## everything was meant to remove.
+@export var refreeze_timeout := 4.0
 
 @onready var ray: RayCast3D = $MouseRay
 
@@ -188,7 +194,7 @@ func _drop() -> void:
 		if _was_frozen:
 			# Do NOT freeze on the spot -- that would stop a thrown prop dead in
 			# mid-air. It re-freezes once it has come to rest by itself.
-			_settling[_dragged.get_instance_id()] = 0.0
+			_settling[_dragged.get_instance_id()] = [0.0, 0.0]
 	_dragged = null
 
 
@@ -246,13 +252,12 @@ func _update_settling(delta: float) -> void:
 		if body == null or not is_instance_valid(body) or body == _dragged:
 			finished.append(id)
 			continue
+		# [seconds held still, seconds since release]
+		var timers: Array = _settling[id]
+		timers[1] = float(timers[1]) + delta
 		var speed := body.linear_velocity.length() + body.angular_velocity.length()
-		if speed > refreeze_speed:
-			_settling[id] = 0.0
-			continue
-		var still: float = float(_settling[id]) + delta
-		_settling[id] = still
-		if still >= refreeze_delay:
+		timers[0] = 0.0 if speed > refreeze_speed else float(timers[0]) + delta
+		if float(timers[0]) >= refreeze_delay or float(timers[1]) >= refreeze_timeout:
 			body.freeze = true
 			finished.append(id)
 	for id in finished:
