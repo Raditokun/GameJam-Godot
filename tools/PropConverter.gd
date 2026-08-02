@@ -63,6 +63,10 @@ const ANGULAR_DAMP := 1.2
 ## compromise and stays valid however the prop is rotated.
 const OUTLINE_SIDES := 8
 
+## Floor on either axis of the carve outline. A zero-width outline is degenerate and the
+## bake either ignores it or produces slivers.
+const MIN_OUTLINE_REACH := 0.2
+
 
 ## Converts every eligible direct child of `root`. Returns a small report object
 ## so this can be driven from a test as well as from the editor.
@@ -209,19 +213,39 @@ func build_collision_shapes(
 	return built
 
 
-## Builds the navmesh carve outline: an octagon around the prop's footprint.
+## Builds the navmesh carve outline: the prop's footprint RECTANGLE, in body space.
 ## The outline, NOT the radius, is what actually cuts the navigation mesh.
+##
+## Two failure modes to avoid, and only a rectangle dodges both:
+##   - Too big. A single `max(size.x, size.z) * 0.5` circle is fine on a crate but
+##     catastrophic on anything long and thin: a banner 1.8 units thick and 17 long
+##     carved a 16.6-unit-wide DISC -- a ring of invisible wall metres out from a prop
+##     you can see straight past. Measured on the real bench those circles left just
+##     24 of 252 sampled cells reachable and split the navmesh into islands that sealed
+##     the enemy into a pocket it could not walk out of.
+##   - Too small. An octagon inscribed in the footprint cuts the corners, so the bake
+##     leaves walkable slivers *inside* solid props and the agent paths straight into a
+##     wall and jams against it -- measured on `wall_sloped2`.
+## The rectangle is exactly the footprint the collision shapes occupy: never a ring of
+## phantom wall, never a sliver of floor inside a solid. It rotates with the body, so a
+## prop dragged to any angle still carves its true footprint.
 func _build_obstacle(local: AABB, size: Vector3) -> NavigationObstacle3D:
 	var obstacle := NavigationObstacle3D.new()
 	var centre := local.get_center()
-	var reach: float = maxf(size.x, size.z) * 0.5
-	var outline := PackedVector3Array()
-	for i in OUTLINE_SIDES:
-		var angle := TAU * float(i) / float(OUTLINE_SIDES)
-		outline.push_back(Vector3(centre.x + cos(angle) * reach, 0.0, centre.z + sin(angle) * reach))
+	var reach_x: float = maxf(size.x * 0.5, MIN_OUTLINE_REACH)
+	var reach_z: float = maxf(size.z * 0.5, MIN_OUTLINE_REACH)
+	var outline := PackedVector3Array([
+		Vector3(centre.x - reach_x, 0.0, centre.z - reach_z),
+		Vector3(centre.x + reach_x, 0.0, centre.z - reach_z),
+		Vector3(centre.x + reach_x, 0.0, centre.z + reach_z),
+		Vector3(centre.x - reach_x, 0.0, centre.z + reach_z),
+	])
 	obstacle.vertices = outline
 	obstacle.height = size.y
-	obstacle.radius = reach
+	# radius only feeds RVO avoidance (which is off for static clutter); the outline is
+	# what cuts the mesh. Keep it as the larger half-extent so a dragged prop still
+	# pushes agents away from its whole footprint.
+	obstacle.radius = maxf(reach_x, reach_z)
 	obstacle.affect_navigation_mesh = true
 	obstacle.carve_navigation_mesh = true
 	# Avoidance OFF, and this matters a lot: every obstacle with it enabled joins

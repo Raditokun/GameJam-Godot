@@ -302,6 +302,19 @@ red) with a `NavigationAgent3D` (avoidance on, agent radius 1.2).
   very next frame and there is no visible pause at a corner.
 - `waypoint_timeout` (20 s) gives up on a stop and moves to the next one, so a
   waypoint walled in by the player's clutter cannot stall the patrol forever.
+- **Two faster give-up paths, because 20 s of standing still reads in-game as the
+  enemy hitting an invisible wall.** `_advance_patrol` also abandons a waypoint
+  when either (a) the agent reports `is_navigation_finished()` while still
+  further than `arrive_distance` away — the path exists but stops short — or
+  (b) `_stuck_time` exceeds `stuck_timeout` (1.5 s), meaning it kept asking to
+  move and covered no ground. (b) is the only signal that catches a path which is
+  valid on the navmesh but runs through something the capsule cannot physically
+  pass; `_drive` measures actual displacement rather than `velocity`, since
+  `move_and_slide()` reports a healthy velocity for a capsule wedged in a corner.
+  `unreachable_grace` (0.75 s) stops the freshly-set-target frames, where
+  navigation briefly reports finished, from cycling waypoints instantly.
+  Measured on the sealed bench: longest freeze 19.7 s → 1.5 s, ground covered in
+  45 s 50 → 140 units.
 - With avoidance on, the desired velocity goes to `agent.velocity` and the move
   happens in the `velocity_computed` callback. Both the arrived and moving cases
   funnel through the same call so `move_and_slide()` runs **exactly once** per
@@ -373,7 +386,7 @@ PropName (RigidBody3D)   groups: draggable, navmesh_source, scale 1
 ├── Model                the original node, keeps the authored scale
 ├── CollisionShape3D     ConvexPolygonShape3D hull, one per mesh
 ├── CollisionShape3D2    (multi-part props get a compound collider)
-└── NavigationObstacle3D octagon carve outline + height
+└── NavigationObstacle3D footprint-rectangle carve outline + height
 ```
 
 - **Colliders are convex hulls, not boxes.** An axis-aligned box around
@@ -392,6 +405,26 @@ PropName (RigidBody3D)   groups: draggable, navmesh_source, scale 1
   its real size.
 - A mesh that yields fewer than 4 hull points is not a solid; those fall back to
   the AABB box rather than leaving the prop with no collider.
+- **The navmesh carve outline is the prop's footprint RECTANGLE, in body space** —
+  not a circle, and not an octagon. Both alternatives were measured on the real
+  bench and both break, in opposite directions:
+  - *Circle* (`max(size.x, size.z) * 0.5`, the original) is fine on a crate but
+    ruinous on anything long and thin. `banner_triple_white2` is 1.8 units thick
+    and 17 long, so it carved a **16.6-unit-wide disc** — a ring of invisible
+    wall metres out from a prop you can see straight past. Across 503 props that
+    totalled 29,466 sq units of carve on a 29,256 sq unit bench, splitting the
+    navmesh into islands: only **24 of 252** sampled cells were reachable from
+    the enemy spawn and the goal was 165 units short of reachable.
+  - *Octagon inscribed in the footprint* fixes the over-carve (216/252 reachable)
+    but cuts the corners, leaving walkable slivers **inside** solid props — the
+    agent then paths into `wall_sloped2` and grinds against it.
+  - The rectangle is exactly what the collision shapes occupy, so it can neither
+    invent phantom wall nor leave floor inside a solid. It rotates with the body,
+    so a dragged prop still carves its true footprint.
+  `tools/refit_carve_outlines.gd` repairs outlines already saved in `Main.tscn`
+  (run it after changing the outline shape; `--check` dry-runs). It edits the
+  scene as **text**, rewriting only the `radius`/`vertices` lines, so unique_ids
+  and instance overrides survive untouched.
 
 - Candidates are chosen **by type, not name** — anything already a
   `CollisionObject3D`, or a `CSGShape3D` / `Camera3D` / `Light3D` / `Marker3D` /
@@ -601,6 +634,22 @@ editing the relevant section above over appending a changelog.
   empty `vertices` outline, the bake completes cleanly and produces a mesh with
   no hole in it — no error, no warning, and the agent happily paths straight
   through the obstacle.
+- **A navmesh carve outline that is not the prop's real footprint is an invisible
+  wall.** Sizing the outline off a single radius (`max(x, z) * 0.5`) turns every
+  long thin prop into a disc of unwalkable floor many units wider than the thing
+  you can see, and hundreds of them merge into barriers that seal the bench into
+  islands. Symptom: an enemy walks to a spot with nothing visible, stops dead,
+  waits out `waypoint_timeout`, then turns around. Diagnose it by flood-filling
+  the bench with the agent's own capsule and comparing that against
+  `NavigationServer3D.map_get_path()` — if the physical fill connects but the
+  navmesh does not, the carve is the culprit. **Also check the opposite failure:**
+  an outline *smaller* than the prop leaves walkable slivers inside solid
+  geometry and the agent jams against a wall it was told to walk through.
+- **`is_navigation_finished()` does not mean "arrived".** It means the agent has
+  run out of path. When a target is unreachable the agent gets a path to the
+  closest reachable point, so it reports finished while still far away. Anything
+  that treats it as arrival will silently skip work; anything that waits for
+  arrival will hang until its timeout.
 - **`SOURCE_GEOMETRY_GROUPS_EXPLICIT` does not visit children.** A navmesh bake
   in explicit mode parses only the exact nodes in the group, so an obstacle or
   collider parented under a grouped node is silently skipped. Use

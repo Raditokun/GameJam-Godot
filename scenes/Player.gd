@@ -112,7 +112,6 @@ extends CharacterBody3D
 # the .tscn carries a node_paths= marker, which is easy to lose by hand.
 @onready var weapons: Array[Node3D] = [
 	$Head/Camera3D/Pistol,
-	$Head/Camera3D/Sword,
 ]
 
 var _pitch := 0.0
@@ -308,7 +307,8 @@ func _on_phase_changed(new_phase: int) -> void:
 		if _carried != null:
 			drop_prop()
 		for weapon in weapons:
-			weapon.equipped = false
+			if is_instance_valid(weapon):
+				weapon.equipped = false
 		# A reset is a retry, so put the player back where the attempt began.
 		global_transform = _spawn_transform
 		velocity = Vector3.ZERO
@@ -338,7 +338,8 @@ func equip(slot: int) -> void:
 		return
 	_slot = wrapi(slot, 0, weapons.size())
 	for i in weapons.size():
-		weapons[i].equipped = i == _slot
+		if is_instance_valid(weapons[i]):
+			weapons[i].equipped = (i == _slot)
 
 
 ## Shoves any physics prop the capsule slid against this frame. A CharacterBody3D

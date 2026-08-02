@@ -29,6 +29,10 @@ window/stretch/aspect="expand"
 
 project/assembly_name="gamejam"
 
+[filesystem]
+
+import/blender/enabled=false
+
 [input]
 
 move_forward={

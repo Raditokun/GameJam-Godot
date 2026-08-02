@@ -57,6 +57,15 @@ enum State {
 ## waypoint that ends up unreachable -- walled in by the player's clutter, say --
 ## would otherwise stall the patrol forever.
 @export var waypoint_timeout := 20.0
+## Grace period before a "path stops short" reading is trusted. The agent reports
+## navigation finished for a frame or two after a new target is set, before the path is
+## actually built, and acting on that would cycle waypoints instantly.
+@export var unreachable_grace := 0.75
+## Give up on a waypoint after this many seconds of trying to move but going nowhere.
+## Covers the case the navigation state cannot see: a path that exists on the navmesh but
+## runs through something the capsule physically cannot pass, which leaves the enemy
+## grinding against a prop until waypoint_timeout expires.
+@export var stuck_timeout := 1.5
 
 @export_group("Aggro")
 ## Group identifying the player. Same reasoning as goal_group.
@@ -103,6 +112,8 @@ var _route: Array[Vector3] = []
 var _route_index := 0
 ## Seconds spent heading for the current waypoint, against `waypoint_timeout`.
 var _waypoint_time := 0.0
+## Seconds spent trying to move while going nowhere, against `stuck_timeout`.
+var _stuck_time := 0.0
 var _spawn_transform := Transform3D.IDENTITY
 # move_and_slide() must run exactly once per physics frame. With avoidance on,
 # the move happens in the velocity_computed callback, and this guards against a
@@ -253,8 +264,19 @@ func _advance_patrol(delta: float) -> void:
 	# tabletop while the capsule's origin rides at its feet, and a stray metre
 	# of height difference should not stop it counting as arrived.
 	var flat := Vector2(here.x - waypoint.x, here.z - waypoint.z).length()
-	if flat > arrive_distance and _waypoint_time < waypoint_timeout:
+	# A waypoint walled off by the player's clutter leaves the agent holding a path that
+	# stops short: navigation reports "finished" while the enemy is still far away, so it
+	# stands motionless until waypoint_timeout expires. On the bench that reads exactly
+	# like the enemy walking into an invisible wall and freezing for 20 seconds. Detect
+	# the stranded case and move on immediately instead.
+	var stranded := (
+		_waypoint_time > unreachable_grace
+		and flat > arrive_distance
+		and (agent.is_navigation_finished() or _stuck_time > stuck_timeout)
+	)
+	if not stranded and flat > arrive_distance and _waypoint_time < waypoint_timeout:
 		return
+	_stuck_time = 0.0
 
 	_route_index = (_route_index + 1) % _route.size()
 	_waypoint_time = 0.0
@@ -317,6 +339,7 @@ func _apply_phase(new_phase: int) -> void:
 		_build_route()
 		agent.target_position = _current_waypoint()
 		_waypoint_time = 0.0
+		_stuck_time = 0.0
 		return
 
 	if state == State.CHASE:
@@ -345,7 +368,16 @@ func _drive(horizontal: Vector3, delta: float) -> void:
 
 	velocity.x = horizontal.x
 	velocity.z = horizontal.z
+	var before := global_position
 	move_and_slide()
+	# Track "wanted to move but didn't". move_and_slide() slides along contacts, so a
+	# capsule wedged in a corner still reports a non-zero velocity while covering no
+	# ground -- comparing actual displacement is the only reliable stuck signal.
+	var wanted := horizontal.length() * delta
+	if wanted > 0.001 and global_position.distance_to(before) < wanted * 0.25:
+		_stuck_time += delta
+	else:
+		_stuck_time = 0.0
 	if horizontal.length_squared() > 0.01:
 		# -Z is the capsule's forward, matching the player's convention.
 		var target_yaw := atan2(-horizontal.x, -horizontal.z)
