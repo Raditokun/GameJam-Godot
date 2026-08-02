@@ -70,16 +70,81 @@ early during PREPARATION, so click / wheel / reach all belong to BuildMode.
 - `DirectionalLight3D` — shadows enabled.
 - `Floor` (CSGBox3D, ~110×1×50) + `Ramp` + `Stair0`–`5` — leftover movement-test
   geometry on the ground, well away from the bench.
-- `meja` — instance of `meja.tscn` scaled ~14.8×, **the workbench itself**. It
+- `meja` — instance of `meja.tscn` scaled ~74.8×, **the workbench itself**. It
   carries a `freeze = true` instance override: at that scale it is the play
   surface, not a prop, and an unfrozen 25 kg body under the player's feet slides
-  around and gets shoved by them.
-- `Obstacle1`–`9` — the draggable clutter, sitting on the tabletop (surface is
-  y ≈ 13.691). Each is a `RigidBody3D` + `Obstacle.gd` with a `MeshInstance3D`
-  (BoxMesh) and a `CollisionShape3D` (BoxShape3D), sharing six size variants.
-  Converted from the old `JumpBlock` CSGBox3D nodes, which had no node-level
-  physics body and so could not be grabbed or scripted.
-- `Player` — instance of `Player.tscn`, standing on the bench.
+  around and gets shoved by them. **Tabletop surface sits at y ≈ 73.635**, and
+  the scale carries a slight tilt, so the surface drifts ~0.15 across the bench.
+- `PrepCamera` (Camera3D + `PrepCamera.gd`) with a `MouseRay` (RayCast3D) child
+  — the Preparation Phase tactical view. See §2b.
+- `bowl_dirty2` — the drag-and-drop test object. A **fully dynamic**
+  `RigidBody3D` (mass 3, friction 0.55, bounce 0.1, `continuous_cd`) in the
+  `draggable` group, holding
+  the gltf as a `Model` child plus a `CollisionShape3D` (CylinderShape3D,
+  r 7.887 × h 4.9815, offset +2.49 y). **The scale lives on the `Model` child,
+  not on the body** — the mesh is 0.95 × 0.3 × 0.95 at 16.605×, and putting that
+  scale on the physics body itself makes for a scaled collider, which Jolt
+  handles badly. The body stays at scale 1 and the shape is sized in world units.
+- `Player` — instance of `Player.tscn`, above the bench.
+
+Obstacle scripting (`Obstacle.gd`, `BuildMode.gd`, §2c) still exists but has no
+nodes in `Main.tscn` right now — the block layout was reverted while the drag
+mechanic is prototyped on the bowl alone.
+
+### 2b. Preparation Phase Camera & Drag Tool
+
+`scenes/PrepCamera.gd` on `Main.tscn/PrepCamera`. A high, steeply-angled
+tactical view of the bench, plus the mouse drag-and-drop tool that goes with it.
+- Authored at **75° below horizontal**, 125.6 units above the tabletop, aimed
+  exactly at the tabletop centre (50.5, 73.6, -4.6). Distance ~130 frames the
+  whole bench.
+- **Owns the camera and the cursor while in PREPARATION**: `make_current()` plus
+  `MOUSE_MODE_VISIBLE`; on lock-in it drops whatever is held, calls
+  `clear_current()` and re-captures the mouse for the first-person controller.
+  The initial `MOUSE_MODE_VISIBLE` is applied via `call_deferred` because
+  `Player._ready()` captures the mouse and this has to win regardless of ready
+  order.
+- Picking uses `project_ray_origin()`/`project_ray_normal()` from the cursor to
+  aim the `MouseRay` RayCast3D each physics frame (the node has `enabled = false`
+  — it is driven by hand, not by its own -Z). `target_position` is local, so the
+  world direction is converted with `to_local()` — this node is pitched 75°.
+- Hold LMB to drag, release to drop; the wheel spins the held object.
+- **The drag is entirely physics-based — nothing writes `global_position` or
+  `global_rotation`.** A spring-damper force pulls the body's centre toward the
+  target, and it is applied **at the point the cursor grabbed** via
+  `apply_force(force, arm)`. Because that point is offset from the centre of
+  mass, the same force that moves the object also torques it, so a fast drag
+  makes it lean and swing on its own — the engine derives the tilt, not the
+  script. `apply_central_force()` would slide it around perfectly flat.
+  - The error steers the **centre**, not the grab point: measuring to the grab
+    point buries a rim-grabbed object by however far the rim sits above its
+    origin.
+  - `tilt_arm` clamps the lever arm. At this world scale the raw grab offset is
+    several metres and the honest torque flips the bowl end over end (measured
+    175° before clamping); 0.6 keeps the lean proportional and settleable.
+  - `_upright_torque_for()` adds the restoring torque that turns a one-off lean
+    into a pendulum, and gravity is switched off while held so the spring is not
+    fighting a permanent sag. Gravity and all accumulated momentum come back on
+    release, so a flung object really is flung (measured: released at 209 u/s,
+    flew 62 units further before landing — and yes, you can fling it clean off
+    the bench).
+- Tunables: `spring_stiffness` (120), `spring_damping` (14 — critical is ~22, so
+  it is deliberately underdamped to leave overshoot), `max_pull` (25, without
+  which a distant grab produces a colossal force spike), `hover_height` (3),
+  `tilt_arm` (0.6), `upright_torque` (40), `upright_damping` (9),
+  `spin_impulse` (45). Measured feel at these values: a fast drag peaks at
+  ~38° of lean and settles back toward level once the cursor stops.
+- While dragging, the held body is added to the ray's **exceptions** rather than
+  having its collision switched off: the exclusion takes effect immediately,
+  where a `collision_layer` change has to be deferred and leaves a frame where
+  the object blocks its own placement ray.
+- `_lowest_point()` measures how far a body's lowest collision point sits below
+  its origin (via `shape.get_debug_mesh().get_aabb()`, which works for every
+  shape type) so the object rests ON the surface instead of sinking into it.
+- Draggables are found by **group** (`draggable`), not node path — tagging more
+  clutter is all that is needed to extend this past the bowl. They must be
+  `RigidBody3D`; the spring has nothing to push on otherwise.
+- Other tunables: `drag_group`, `pick_distance` (900).
 
 ### `scenes/Player.tscn` (`CharacterBody3D`, script `Player.gd`)
 ```
@@ -153,7 +218,10 @@ katana model in `3DModels/`)
 - Also needs `node_paths=PackedStringArray("ray")` on its `[node]` entry in
   `Player.tscn`.
 
-### Obstacles & the Build Tool (Preparation Phase)
+### 2c. Obstacles & the First-Person Build Tool
+
+*(Scripts are live; no obstacle nodes are in `Main.tscn` at the moment — the
+drag mechanic is being prototyped through `PrepCamera.gd` on the bowl instead.)*
 
 **`scenes/Obstacle.gd`** (`class_name Obstacle extends RigidBody3D`) — a piece
 of bench clutter the player repositions.
@@ -243,9 +311,9 @@ build tool, in ACTION they drive the weapons.
 | `walk` | Shift | Slows to `walk_speed`; overridden by crouch if both held |
 | `slot_1` | 1 | Equip Pistol |
 | `slot_2` | 2 | Equip Sword |
-| `slot_next` | Mouse wheel down | Action: cycle weapon forward. Preparation: rotate held obstacle |
-| `slot_prev` | Mouse wheel up | Action: cycle weapon backward. Preparation: rotate held obstacle |
-| `fire` | Left Click | Preparation: grab / place obstacle. Pistol: shoot. Sword: melee swing. Carrying: throw the prop |
+| `slot_next` | Mouse wheel down | Action: cycle weapon forward. Preparation: rotate held object |
+| `slot_prev` | Mouse wheel up | Action: cycle weapon backward. Preparation: rotate held object |
+| `fire` | Left Click | Preparation: hold to drag a `draggable` object under the cursor. Pistol: shoot. Sword: melee swing. Carrying: throw the prop |
 | `interact` | E | Pick up the prop under the crosshair / put it down |
 | `reload` | R | Pistol only |
 | `ui_cancel` | Esc | Opens/closes SettingsMenu; pauses the tree while open |
@@ -280,6 +348,17 @@ editing the relevant section above over appending a changelog.
   the stored contact energy as a 100+ m/s ejection. If a prop ignores you and
   then lurches when you back off, raise `push_force` — don't chase it as a
   collision bug.
+- **A `cross(UP)` restoring torque parks an object upside down.** The classic
+  "roll this body back level" torque, `body.global_basis.y.cross(Vector3.UP)`,
+  has length `sin(lean)` — which is zero at 180° as well as at 0°. A body that
+  gets flipped fully inverted therefore sits in a *stable* equilibrium and stays
+  there forever, looking like the righting code is broken. Normalise the axis
+  and scale it by the lean **angle** instead, and special-case the exactly
+  inverted pose (any horizontal axis will start it falling back).
+- **In a hand-written `.tscn`, the 12-number `Transform3D(...)` sets basis
+  ROWS, not columns.** Writing the columns gives you the transpose — for a
+  rotation that is the inverse, so a camera pitched to look down at the table
+  ends up aiming at the sky.
 - **`linear_velocity` does not reflect an `apply_impulse()` until the next
   physics step.** Reading it back on the same frame always shows the old value,
   which makes a working throw or shove look like a no-op in a probe.

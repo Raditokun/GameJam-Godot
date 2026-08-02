@@ -6,7 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/Pistol.tscn" id="3_pistol"]
 [ext_resource type="Script" uid="uid://b27tw8meflmor" path="res://scenes/Crosshair.gd" id="4_crosshair"]
 [ext_resource type="PackedScene" path="res://scenes/SettingsMenu.tscn" id="5_settings"]
-[ext_resource type="Script" path="res://scenes/BuildMode.gd" id="6_build"]
+[ext_resource type="Script" uid="uid://dmh6pglfaqp03" path="res://scenes/BuildMode.gd" id="6_build"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.4
@@ -94,6 +94,7 @@ horizontal_alignment = 2
 vertical_alignment = 2
 
 [node name="PhaseLabel" type="Label" parent="HUD" unique_id=1206633475]
+visible = false
 anchors_preset = 7
 anchor_left = 0.5
 anchor_top = 1.0
