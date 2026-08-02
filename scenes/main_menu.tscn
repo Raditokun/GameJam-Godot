@@ -26,7 +26,7 @@ offset_left = 19.447998
 offset_top = -8.032013
 offset_right = 344.448
 offset_bottom = 106.96799
-text = "Setting"
+text = "Start"
 
 [node name="Setting" type="Button" parent="." unique_id=846255830]
 layout_mode = 0
@@ -34,7 +34,7 @@ offset_left = 394.0
 offset_top = 42.0
 offset_right = 719.0
 offset_bottom = 156.0
-text = "Start"
+text = "Setting"
 
 [node name="Credits" type="Button" parent="." unique_id=1917312917]
 layout_mode = 0
