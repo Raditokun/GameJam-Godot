@@ -11,12 +11,12 @@ func _process(delta: float) -> void:
 func _on_start_pressed() -> void:
 	# This loads the game. 
 	# Make sure the "Start" button's signal is connected to THIS function!
-	get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	get_tree().change_scene_to_file("res://scenes/SettingsMenu.tscn")
 
 func _on_setting_pressed() -> void:
 	# This loads the settings. 
 	# Make sure the "Setting" button's signal is connected to THIS function!
-	get_tree().change_scene_to_file("res://scenes/SettingsMenu.tscn")
+	get_tree().change_scene_to_file("res://scenes/Main.tscn")
 
 func _on_credits_pressed() -> void:
 	# FIXED CRASH: "sword.tscn" was deleted, so this would have broken the game.
