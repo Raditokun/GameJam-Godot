@@ -1,0 +1,38 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scenes/Coin.gd" id="1_coin"]
+[ext_resource type="PackedScene" uid="uid://lh8a4sm8csy1" path="res://3DModels/KayKit_BoardGameBits_1.0_FREE/KayKit_BoardGameBits_1.0_FREE/Assets/gltf/coin_gold.gltf" id="2_coinmesh"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_coin"]
+radius = 4.0
+
+[node name="Coin" type="Area3D" groups=["coins"]]
+collision_layer = 0
+collision_mask = 1
+script = ExtResource("1_coin")
+
+[node name="Model" parent="." instance=ExtResource("2_coinmesh")]
+transform = Transform3D(1.2, 0, 0, 0, -5.2439356e-08, -1.2, 0, 1.2, -5.2439356e-08, 0, 0.75, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("SphereShape3D_coin")
+
+[node name="Glow" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+light_color = Color(1, 1, 1, 1)
+light_energy = 4.0
+omni_range = 8.0
+
+[node name="Prompt" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.9, 0)
+visible = false
+billboard = 1
+no_depth_test = true
+fixed_size = true
+pixel_size = 0.0012
+text = "Press E"
+font_size = 96
+outline_size = 24
+modulate = Color(1, 0.95, 0.6, 1)
+outline_modulate = Color(0, 0, 0, 1)

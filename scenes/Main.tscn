@@ -5,7 +5,10 @@
 [ext_resource type="PackedScene" uid="uid://dtvqvs5xeqp4n" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/bowl_dirty.gltf" id="3_0bbpv"]
 [ext_resource type="Script" uid="uid://gsrhijvqfvs6" path="res://scenes/PrepCamera.gd" id="4_prepcam"]
 [ext_resource type="Script" uid="uid://cgmencef7f8sy" path="res://scenes/NavBaker.gd" id="5_navbaker"]
+[ext_resource type="PackedScene" path="res://scenes/Coin.tscn" id="6_coinscene"]
+[ext_resource type="Script" uid="uid://b65rbj7q5hi3j" path="res://scenes/CoinSpawner.gd" id="6_coinspawner"]
 [ext_resource type="PackedScene" path="res://scenes/Enemy.tscn" id="6_enemy"]
+[ext_resource type="Script" uid="uid://b0g1c2mf3truq" path="res://scenes/WaveSpawner.gd" id="6_wavespawner"]
 [ext_resource type="PackedScene" uid="uid://d3xitn6xb7nfa" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/crate_steak.gltf" id="7_tra3b"]
 [ext_resource type="PackedScene" uid="uid://dw7o0212h582i" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/crate_tomatoes.gltf" id="8_5dy05"]
 [ext_resource type="PackedScene" uid="uid://byvpfn0i3wva7" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/dishrack_plates.gltf" id="9_v2cqe"]
@@ -341,31 +344,17 @@
 [ext_resource type="PackedScene" uid="uid://c8qqn0dq1eawy" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/lander_base.gltf" id="353_f7gpd"]
 [ext_resource type="PackedScene" uid="uid://bjsl8aknl4v0q" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/lander_A.gltf" id="354_rgci7"]
 [ext_resource type="PackedScene" uid="uid://2gjfhdb1wvcy" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/containers_B.gltf" id="355_dlitg"]
-[ext_resource type="PackedScene" uid="uid://bo3h66vsgm7o8" path="res://3DModels/KayKit_Dungeon_Pack_1.1_FREE/KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/banner_blue.gltf" id="356_4m8vs"]
 [ext_resource type="PackedScene" uid="uid://50nv0k4k4ogn" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/rock_A.gltf" id="356_8hoxf"]
 [ext_resource type="PackedScene" uid="uid://vj545lbokok6" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/roofmodule_cargo_C.gltf" id="357_ckcex"]
-[ext_resource type="PackedScene" uid="uid://ch03tc7tkdenp" path="res://3DModels/KayKit_Dungeon_Pack_1.1_FREE/KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/banner_patternA_blue.gltf" id="357_rmx21"]
 [ext_resource type="PackedScene" uid="uid://dwwcol5n1rul7" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/solarpanel.gltf" id="358_5sk6f"]
-[ext_resource type="PackedScene" uid="uid://clnuh5thixkyy" path="res://3DModels/KayKit_Dungeon_Pack_1.1_FREE/KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/banner_patternA_yellow.gltf" id="358_beypw"]
-[ext_resource type="PackedScene" uid="uid://blsbhxuvo8tkb" path="res://3DModels/KayKit_Dungeon_Pack_1.1_FREE/KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/banner_patternB_brown.gltf" id="359_dtnoj"]
 [ext_resource type="PackedScene" uid="uid://dq5g5v7qfy0eq" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/structure_low.gltf" id="359_qwdee"]
 [ext_resource type="PackedScene" uid="uid://dkvf35d6jwuno" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/terrain_low_curved.gltf" id="360_aucvy"]
-[ext_resource type="PackedScene" uid="uid://b2rwscy0ktwqn" path="res://3DModels/KayKit_Dungeon_Pack_1.1_FREE/KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/banner_patternB_yellow.gltf" id="360_i465x"]
-[ext_resource type="PackedScene" uid="uid://lw83a214kub" path="res://3DModels/KayKit_Dungeon_Pack_1.1_FREE/KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/banner_patternC_red.gltf" id="361_0t5ov"]
 [ext_resource type="PackedScene" uid="uid://cys5uhhil0laq" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/terrain_slope_outer_corner.gltf" id="361_cvb1e"]
-[ext_resource type="PackedScene" uid="uid://bcc01vlc3dbp1" path="res://3DModels/KayKit_Dungeon_Pack_1.1_FREE/KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/banner_shield_blue.gltf" id="362_p7sik"]
 [ext_resource type="PackedScene" uid="uid://y8dejj5fnr23" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/tunnel_diagonal_short_A.gltf" id="362_vqgh0"]
 [ext_resource type="PackedScene" uid="uid://20p0dyjw4lk" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/tunnel_straight_B.gltf" id="363_g6ypm"]
-[ext_resource type="PackedScene" uid="uid://bw6eqdsd7mbt7" path="res://3DModels/KayKit_Dungeon_Pack_1.1_FREE/KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/banner_shield_red.gltf" id="363_vptdc"]
 [ext_resource type="PackedScene" uid="uid://bo5ew47iuyehe" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/tunnel_diagonal_long_B.gltf" id="364_f8okd"]
-[ext_resource type="PackedScene" uid="uid://tcuklh7aobvd" path="res://3DModels/KayKit_Dungeon_Pack_1.1_FREE/KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/banner_thin_blue.gltf" id="364_o8yci"]
-[ext_resource type="PackedScene" uid="uid://co0ufhvpvoqgh" path="res://3DModels/KayKit_Dungeon_Pack_1.1_FREE/KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/banner_thin_red.gltf" id="365_dfq5o"]
 [ext_resource type="PackedScene" uid="uid://52vsikhcya7u" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/tunnel_straight_A.gltf" id="365_qihbc"]
-[ext_resource type="PackedScene" uid="uid://dvlymjyxvvpmg" path="res://3DModels/KayKit_Dungeon_Pack_1.1_FREE/KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/banner_triple_blue.gltf" id="366_80ot5"]
 [ext_resource type="PackedScene" uid="uid://b7ohxolacag0y" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/windturbine_tall.gltf" id="366_dv4ba"]
-[ext_resource type="PackedScene" uid="uid://bl4gpctxxtss8" path="res://3DModels/KayKit_Dungeon_Pack_1.1_FREE/KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/banner_triple_brown.gltf" id="367_f5wba"]
-[ext_resource type="PackedScene" uid="uid://db8k8olj5fo2q" path="res://3DModels/KayKit_Dungeon_Pack_1.1_FREE/KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/banner_triple_white.gltf" id="368_cox6b"]
-[ext_resource type="PackedScene" uid="uid://dk1hesut3yxod" path="res://3DModels/KayKit_Dungeon_Pack_1.1_FREE/KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/banner_yellow.gltf" id="369_gfa0u"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
 
@@ -3966,111 +3955,6 @@ points = PackedVector3Array(0.2428194, 7.639398, 0.24281947, -1.5932934, -0.0615
 [sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_43uln"]
 points = PackedVector3Array(0.11860776, 13.62657, 1.0137815, 3.8103998, 6.9583693, 1.1328566, -3.8104017, 7.1966124, 1.3710066, 0.11153442, 9.061196, 1.9465829, 0.3565714, 9.458944, -2.4384847, -0.5952828, 7.5543036, -0.41420957, -1.3091735, 10.5294075, -0.41420957, -0.118609816, 13.62657, 1.3710066, 3.8103998, 7.31606, 1.3710066, 1.3091716, 10.5294075, -0.41420957, -3.8104017, 7.077817, 1.0137815, -0.35657325, 9.458944, -2.4384847, -0.11135473, 9.063201, -2.4151323, 3.8103998, 7.31606, 1.1328566, 3.4530814, 7.4348555, 1.4900815, -0.23796457, 13.150084, 1.4900815, -3.3337286, 7.31606, 1.4900815, -0.118609816, 13.62657, 1.1328566, -3.8104017, 6.9583693, 1.1328566, -3.8104017, 7.31606, 1.1328566, 3.691045, 6.9583693, 1.0137815, 0.5952809, 7.5543036, -0.41420957, -0.22255903, 9.179592, 1.93474, 0.111348346, 9.063251, -2.4150443, 0.11860785, 9.458944, -2.5571053, 1.6664898, 9.817288, -0.41420957, -1.6664917, 9.817288, -0.41420957, 0.22255675, 9.179594, 1.9347366, 3.4530814, 7.5543036, 1.4900815, -3.8104017, 7.1966124, 1.0137815, -0.23796448, 9.578392, -2.4384847, -3.6755972, 7.076323, 1.314152)
 
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_kk6o1"]
-friction = 0.55
-bounce = 0.05
-
-[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_t2f8s"]
-points = PackedVector3Array(2.2201476, 16.676146, 3.1866403, -3.4930234, 2.510198, 1.5868148, -2.8071377, 2.2796829, 1.5868148, 1.7631216, 16.220842, 1.5868148, 3.591919, 2.510198, 1.5868148, -3.4930234, 16.90666, 2.5007324, -3.4930234, 3.8818352, 2.2727227, -3.4930234, 14.6186905, 1.5868148, 3.591919, 3.8818352, 2.2727227, 3.591919, 16.90666, 2.2727227, -2.3501117, 15.991758, 3.1866403, 3.591919, 14.6186905, 1.5868148, -1.664226, 16.448494, 1.5868148, 1.7631216, 2.7378497, 2.04393, 2.2201476, 15.761243, 3.1866403, 3.591919, 16.90666, 2.5007324, -2.8071377, 2.2796829, 1.8156074, -2.121252, 16.676146, 3.1866403, -3.4930234, 16.90666, 2.2727227, 3.591919, 2.510198, 1.8156074, -2.121252, 15.761243, 3.1866403, -2.8071377, 2.7378497, 2.04393, 1.5349555, 2.2796829, 1.8156074, 3.591919, 15.30594, 2.5007324, -3.4930234, 15.30594, 2.5007324, -3.4930234, 2.9669333, 2.04393, 1.5349555, 2.2796829, 1.5868148, 3.591919, 2.9669333, 2.04393, -2.3501117, 16.448494, 3.1866403, -3.4930234, 2.510198, 1.8156074, -1.43606, 16.448494, 1.5868148)
-
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_i3k88"]
-friction = 0.55
-bounce = 0.05
-
-[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_vb4un"]
-points = PackedVector3Array(2.2201476, 16.676146, 3.1866403, -3.4930234, 2.510198, 1.5868148, -2.8071377, 2.2796829, 1.5868148, 1.7631216, 16.220842, 1.5868148, 3.591919, 2.510198, 1.5868148, -3.4930234, 16.90666, 2.5007324, -3.4930234, 3.8818352, 2.2727227, -3.4930234, 14.6186905, 1.5868148, 3.591919, 3.8818352, 2.2727227, 3.591919, 16.90666, 2.2727227, -2.3501117, 15.991758, 3.1866403, 3.591919, 14.6186905, 1.5868148, -1.664226, 16.448494, 1.5868148, 1.7631216, 2.7378497, 2.04393, 2.2201476, 15.761243, 3.1866403, 3.591919, 16.90666, 2.5007324, -2.8071377, 2.2796829, 1.8156074, -2.121252, 16.676146, 3.1866403, -3.4930234, 16.90666, 2.2727227, 3.591919, 2.510198, 1.8156074, -2.121252, 15.761243, 3.1866403, -2.8071377, 2.7378497, 2.04393, 1.5349555, 2.2796829, 1.8156074, 3.591919, 15.30594, 2.5007324, -3.4930234, 15.30594, 2.5007324, -3.4930234, 2.9669333, 2.04393, 1.5349555, 2.2796829, 1.5868148, 3.591919, 2.9669333, 2.04393, -2.3501117, 16.448494, 3.1866403, -3.4930234, 2.510198, 1.8156074, -1.43606, 16.448494, 1.5868148)
-
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_pfkhy"]
-friction = 0.55
-bounce = 0.05
-
-[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_p4s0x"]
-points = PackedVector3Array(2.2201476, 16.676146, 3.1866403, -3.4930234, 2.510198, 1.5868148, -2.8071377, 2.2796829, 1.5868148, 1.7631216, 16.220842, 1.5868148, 3.591919, 2.510198, 1.5868148, -3.4930234, 16.90666, 2.5007324, -3.4930234, 3.8818352, 2.2727227, -3.4930234, 14.6186905, 1.5868148, 3.591919, 3.8818352, 2.2727227, 3.591919, 16.90666, 2.2727227, -2.3501117, 15.991758, 3.1866403, 3.591919, 14.6186905, 1.5868148, -1.664226, 16.448494, 1.5868148, 1.7631216, 2.7378497, 2.04393, 2.2201476, 15.761243, 3.1866403, 3.591919, 16.90666, 2.5007324, -2.8071377, 2.2796829, 1.8156074, -2.121252, 16.676146, 3.1866403, -3.4930234, 16.90666, 2.2727227, 3.591919, 2.510198, 1.8156074, -2.121252, 15.761243, 3.1866403, -2.8071377, 2.7378497, 2.04393, 1.5349555, 2.2796829, 1.8156074, 3.591919, 15.30594, 2.5007324, -3.4930234, 15.30594, 2.5007324, -3.4930234, 2.9669333, 2.04393, 1.5349555, 2.2796829, 1.5868148, 3.591919, 2.9669333, 2.04393, -2.3501117, 16.448494, 3.1866403, -3.4930234, 2.510198, 1.8156074, -1.43606, 16.448494, 1.5868148)
-
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_ilbxs"]
-friction = 0.55
-bounce = 0.05
-
-[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_0tgus"]
-points = PackedVector3Array(2.2201476, 16.676146, 3.1866403, -3.4930234, 2.510198, 1.5868148, -2.8071377, 2.2796829, 1.5868148, 1.7631216, 16.220842, 1.5868148, 3.591919, 2.510198, 1.5868148, -3.4930234, 16.90666, 2.5007324, -3.4930234, 3.8818352, 2.2727227, -3.4930234, 14.6186905, 1.5868148, 3.591919, 3.8818352, 2.2727227, 3.591919, 16.90666, 2.2727227, -2.3501117, 15.991758, 3.1866403, 3.591919, 14.6186905, 1.5868148, -1.664226, 16.448494, 1.5868148, 1.7631216, 2.7378497, 2.04393, 2.2201476, 15.761243, 3.1866403, 3.591919, 16.90666, 2.5007324, -2.8071377, 2.2796829, 1.8156074, -2.121252, 16.676146, 3.1866403, -3.4930234, 16.90666, 2.2727227, 3.591919, 2.510198, 1.8156074, -2.121252, 15.761243, 3.1866403, -2.8071377, 2.7378497, 2.04393, 1.5349555, 2.2796829, 1.8156074, 3.591919, 15.30594, 2.5007324, -3.4930234, 15.30594, 2.5007324, -3.4930234, 2.9669333, 2.04393, 1.5349555, 2.2796829, 1.5868148, 3.591919, 2.9669333, 2.04393, -2.3501117, 16.448494, 3.1866403, -3.4930234, 2.510198, 1.8156074, -1.43606, 16.448494, 1.5868148)
-
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_3l0d5"]
-friction = 0.55
-bounce = 0.05
-
-[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_ty2ic"]
-points = PackedVector3Array(2.2201476, 16.676146, 3.1866403, -3.4930234, 2.510198, 1.5868148, -2.8071377, 2.2796829, 1.5868148, 1.7631216, 16.220842, 1.5868148, 3.591919, 2.510198, 1.5868148, -3.4930234, 16.90666, 2.5007324, -3.4930234, 3.8818352, 2.2727227, -3.4930234, 14.6186905, 1.5868148, 3.591919, 3.8818352, 2.2727227, 3.591919, 16.90666, 2.2727227, -2.3501117, 15.991758, 3.1866403, 3.591919, 14.6186905, 1.5868148, -1.664226, 16.448494, 1.5868148, 1.7631216, 2.7378497, 2.04393, 2.2201476, 15.761243, 3.1866403, 3.591919, 16.90666, 2.5007324, -2.8071377, 2.2796829, 1.8156074, -2.121252, 16.676146, 3.1866403, -3.4930234, 16.90666, 2.2727227, 3.591919, 2.510198, 1.8156074, -2.121252, 15.761243, 3.1866403, -2.8071377, 2.7378497, 2.04393, 1.5349555, 2.2796829, 1.8156074, 3.591919, 15.30594, 2.5007324, -3.4930234, 15.30594, 2.5007324, -3.4930234, 2.9669333, 2.04393, 1.5349555, 2.2796829, 1.5868148, 3.591919, 2.9669333, 2.04393, -2.3501117, 16.448494, 3.1866403, -3.4930234, 2.510198, 1.8156074, -1.43606, 16.448494, 1.5868148)
-
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_yut3w"]
-friction = 0.55
-bounce = 0.05
-
-[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_ms3sn"]
-points = PackedVector3Array(2.2201476, 16.676146, 3.1866403, -3.4930234, 2.510198, 1.5868148, -2.8071377, 2.2796829, 1.5868148, 1.7631216, 16.220842, 1.5868148, 3.591919, 2.510198, 1.5868148, -3.4930234, 16.90666, 2.5007324, -3.4930234, 3.8818352, 2.2727227, -3.4930234, 14.6186905, 1.5868148, 3.591919, 3.8818352, 2.2727227, 3.591919, 16.90666, 2.2727227, -2.3501117, 15.991758, 3.1866403, 3.591919, 14.6186905, 1.5868148, -1.664226, 16.448494, 1.5868148, 1.7631216, 2.7378497, 2.04393, 2.2201476, 15.761243, 3.1866403, 3.591919, 16.90666, 2.5007324, -2.8071377, 2.2796829, 1.8156074, -2.121252, 16.676146, 3.1866403, -3.4930234, 16.90666, 2.2727227, 3.591919, 2.510198, 1.8156074, -2.121252, 15.761243, 3.1866403, -2.8071377, 2.7378497, 2.04393, 1.5349555, 2.2796829, 1.8156074, 3.591919, 15.30594, 2.5007324, -3.4930234, 15.30594, 2.5007324, -3.4930234, 2.9669333, 2.04393, 1.5349555, 2.2796829, 1.5868148, 3.591919, 2.9669333, 2.04393, -2.3501117, 16.448494, 3.1866403, -3.4930234, 2.510198, 1.8156074, -1.43606, 16.448494, 1.5868148)
-
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_k2pt1"]
-friction = 0.55
-bounce = 0.05
-
-[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_on5qx"]
-points = PackedVector3Array(2.3984368, 15.761243, 3.134976, -5.141853, 12.335014, 1.5353292, -3.5411773, 2.510198, 1.5353292, 4.913209, 13.020833, 1.3066037, 3.5420644, 2.7378497, 1.9922433, -1.4844599, 6.8513293, 2.9062505, -3.5411773, 16.90666, 2.4491575, 1.7138712, 16.220842, 1.5353292, -4.912322, 13.249916, 1.3066037, -2.3975496, 16.448494, 3.134976, -3.5411773, 3.65132, 2.22079, 3.5420644, 2.510198, 1.5353292, 5.1427402, 13.020833, 2.22079, 3.5420644, 16.90666, 2.4491575, -5.141853, 12.790318, 2.22079, 1.4853472, 6.8513293, 2.9062505, -1.7129841, 16.448494, 1.5353292, -3.7697012, 10.277559, 1.3066037, 3.5420644, 3.65132, 2.22079, -2.855605, 2.510198, 1.9922433, 3.7705884, 10.277559, 1.3066037, 2.1709197, 16.676146, 3.134976, 3.5420644, 16.90666, 2.22079, -2.3975496, 15.761243, 3.134976, -3.5411773, 16.90666, 2.22079, 5.1427402, 12.564097, 1.5353292, 1.4853472, 2.2796829, 1.5353292, -0.09835034, 6.219762, 2.8160791, 1.4853472, 2.510198, 1.9922433, 5.1427402, 12.335014, 1.9922433, -3.5411773, 2.7378497, 1.9922433, 4.6846848, 13.249916, 1.3066037)
-
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_moewn"]
-friction = 0.55
-bounce = 0.05
-
-[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_ej1ox"]
-points = PackedVector3Array(2.3984368, 15.761243, 3.134976, -5.141853, 12.335014, 1.5353292, -3.5411773, 2.510198, 1.5353292, 4.913209, 13.020833, 1.3066037, 3.5420644, 2.7378497, 1.9922433, -1.4844599, 6.8513293, 2.9062505, -3.5411773, 16.90666, 2.4491575, 1.7138712, 16.220842, 1.5353292, -4.912322, 13.249916, 1.3066037, -2.3975496, 16.448494, 3.134976, -3.5411773, 3.65132, 2.22079, 3.5420644, 2.510198, 1.5353292, 5.1427402, 13.020833, 2.22079, 3.5420644, 16.90666, 2.4491575, -5.141853, 12.790318, 2.22079, 1.4853472, 6.8513293, 2.9062505, -1.7129841, 16.448494, 1.5353292, -3.7697012, 10.277559, 1.3066037, 3.5420644, 3.65132, 2.22079, -2.855605, 2.510198, 1.9922433, 3.7705884, 10.277559, 1.3066037, 2.1709197, 16.676146, 3.134976, 3.5420644, 16.90666, 2.22079, -2.3975496, 15.761243, 3.134976, -3.5411773, 16.90666, 2.22079, 5.1427402, 12.564097, 1.5353292, 1.4853472, 2.2796829, 1.5353292, -0.09835034, 6.219762, 2.8160791, 1.4853472, 2.510198, 1.9922433, 5.1427402, 12.335014, 1.9922433, -3.5411773, 2.7378497, 1.9922433, 4.6846848, 13.249916, 1.3066037)
-
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_oitb3"]
-friction = 0.55
-bounce = 0.05
-
-[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_dbamv"]
-points = PackedVector3Array(0.12950362, 16.677074, 3.2921839, -2.591133, 2.6214466, 1.705155, 0.12950362, 16.449797, 1.4784113, 2.624484, 2.6214466, 1.705155, -2.591133, 16.90435, 2.1586425, 2.624484, 16.90435, 2.1586425, -2.591133, 3.529132, 2.1586425, 2.624484, 3.529132, 2.1586425, -0.5500174, 16.223942, 3.2921839, -2.4050324, 14.490998, 1.7536919, 2.4383836, 14.490998, 1.7536919, 2.624484, 16.90435, 2.3853862, 0.3561808, 15.769388, 3.2921839, -2.591133, 16.90435, 2.3853862, -2.3639452, 2.3927495, 1.9318988, 2.3972964, 3.3018553, 2.1586425, -2.137268, 3.3018553, 2.1586425, -0.09615249, 15.996665, 1.4784113, 2.1706192, 2.3927495, 1.9318988, 2.624484, 15.08898, 2.3853862, -2.591133, 15.08898, 2.3853862, -0.32282966, 15.769388, 3.2921839, -0.09615249, 16.449797, 1.4784113, -0.32282966, 16.677074, 3.2921839, 0.3561808, 16.449797, 3.2921839, 2.624484, 2.6214466, 1.9318988, -2.591133, 2.6214466, 1.9318988, -0.5500174, 16.449797, 3.2921839, 0.12950362, 15.996665, 1.4784113)
-
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_0u7d2"]
-friction = 0.55
-bounce = 0.05
-
-[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_ctjri"]
-points = PackedVector3Array(0.12950362, 16.677074, 3.2921839, -2.591133, 2.6214466, 1.705155, 0.12950362, 16.449797, 1.4784113, 2.624484, 2.6214466, 1.705155, -2.591133, 16.90435, 2.1586425, 2.624484, 16.90435, 2.1586425, -2.591133, 3.529132, 2.1586425, 2.624484, 3.529132, 2.1586425, -0.5500174, 16.223942, 3.2921839, -2.4050324, 14.490998, 1.7536919, 2.4383836, 14.490998, 1.7536919, 2.624484, 16.90435, 2.3853862, 0.3561808, 15.769388, 3.2921839, -2.591133, 16.90435, 2.3853862, -2.3639452, 2.3927495, 1.9318988, 2.3972964, 3.3018553, 2.1586425, -2.137268, 3.3018553, 2.1586425, -0.09615249, 15.996665, 1.4784113, 2.1706192, 2.3927495, 1.9318988, 2.624484, 15.08898, 2.3853862, -2.591133, 15.08898, 2.3853862, -0.32282966, 15.769388, 3.2921839, -0.09615249, 16.449797, 1.4784113, -0.32282966, 16.677074, 3.2921839, 0.3561808, 16.449797, 3.2921839, 2.624484, 2.6214466, 1.9318988, -2.591133, 2.6214466, 1.9318988, -0.5500174, 16.449797, 3.2921839, 0.12950362, 15.996665, 1.4784113)
-
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_e4gto"]
-friction = 0.55
-bounce = 0.05
-
-[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_ikpla"]
-points = PackedVector3Array(-2.9089224, 2.263092, 1.4593269, 8.466539, 16.812107, 2.5173335, 8.466539, 16.812107, 2.2533758, -8.466539, 16.812107, 2.2533758, -6.6134477, 15.753868, 3.3113825, 3.4393244, 3.5862474, 2.2533758, 8.466539, 14.695629, 1.4593269, -6.3499045, 16.282276, 1.4593269, 6.8786488, 16.547192, 3.3113825, 8.466539, 6.2325597, 1.4593269, -8.466539, 6.2325597, 1.9885114, -3.4393244, 3.5862474, 2.2533758, 8.466539, 7.290799, 2.2533758, -8.466539, 6.2325597, 1.4593269, 3.4393244, 2.528008, 1.9885114, 6.6134477, 16.282276, 1.4593269, 6.8786488, 15.753868, 3.3113825, -6.8786488, 16.547192, 3.3113825, -8.466539, 14.695629, 1.4593269, -8.466539, 7.290799, 2.2533758, 3.4393244, 2.528008, 1.4593269, -3.4393244, 2.528008, 1.9885114, -8.466539, 16.812107, 2.5173335, 8.466539, 6.2325597, 1.9885114, 1.3226897, 2.263092, 1.9885114, 6.6134477, 16.547192, 1.7240096, -6.3499045, 16.547192, 1.7240096, 1.586233, 2.263092, 1.4593269, 8.466539, 15.224036, 2.5173335, -8.466539, 15.224036, 2.5173335, -8.201338, 5.9676433, 1.4593269, -0.52874434, 2.263092, 1.9885114)
-
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_y0kwl"]
-friction = 0.55
-bounce = 0.05
-
-[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_epb8g"]
-points = PackedVector3Array(-2.9089224, 2.263092, 1.4593269, 8.466539, 16.812107, 2.5173335, 8.466539, 16.812107, 2.2533758, -8.466539, 16.812107, 2.2533758, -6.6134477, 15.753868, 3.3113825, 3.4393244, 3.5862474, 2.2533758, 8.466539, 14.695629, 1.4593269, -6.3499045, 16.282276, 1.4593269, 6.8786488, 16.547192, 3.3113825, 8.466539, 6.2325597, 1.4593269, -8.466539, 6.2325597, 1.9885114, -3.4393244, 3.5862474, 2.2533758, 8.466539, 7.290799, 2.2533758, -8.466539, 6.2325597, 1.4593269, 3.4393244, 2.528008, 1.9885114, 6.6134477, 16.282276, 1.4593269, 6.8786488, 15.753868, 3.3113825, -6.8786488, 16.547192, 3.3113825, -8.466539, 14.695629, 1.4593269, -8.466539, 7.290799, 2.2533758, 3.4393244, 2.528008, 1.4593269, -3.4393244, 2.528008, 1.9885114, -8.466539, 16.812107, 2.5173335, 8.466539, 6.2325597, 1.9885114, 1.3226897, 2.263092, 1.9885114, 6.6134477, 16.547192, 1.7240096, -6.3499045, 16.547192, 1.7240096, 1.586233, 2.263092, 1.4593269, 8.466539, 15.224036, 2.5173335, -8.466539, 15.224036, 2.5173335, -8.201338, 5.9676433, 1.4593269, -0.52874434, 2.263092, 1.9885114)
-
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_ud42e"]
-friction = 0.55
-bounce = 0.05
-
-[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_glrj1"]
-points = PackedVector3Array(-2.9089224, 2.263092, 1.4593269, 8.466539, 16.812107, 2.5173335, 8.466539, 16.812107, 2.2533758, -8.466539, 16.812107, 2.2533758, -6.6134477, 15.753868, 3.3113825, 3.4393244, 3.5862474, 2.2533758, 8.466539, 14.695629, 1.4593269, -6.3499045, 16.282276, 1.4593269, 6.8786488, 16.547192, 3.3113825, 8.466539, 6.2325597, 1.4593269, -8.466539, 6.2325597, 1.9885114, -3.4393244, 3.5862474, 2.2533758, 8.466539, 7.290799, 2.2533758, -8.466539, 6.2325597, 1.4593269, 3.4393244, 2.528008, 1.9885114, 6.6134477, 16.282276, 1.4593269, 6.8786488, 15.753868, 3.3113825, -6.8786488, 16.547192, 3.3113825, -8.466539, 14.695629, 1.4593269, -8.466539, 7.290799, 2.2533758, 3.4393244, 2.528008, 1.4593269, -3.4393244, 2.528008, 1.9885114, -8.466539, 16.812107, 2.5173335, 8.466539, 6.2325597, 1.9885114, 1.3226897, 2.263092, 1.9885114, 6.6134477, 16.547192, 1.7240096, -6.3499045, 16.547192, 1.7240096, 1.586233, 2.263092, 1.4593269, 8.466539, 15.224036, 2.5173335, -8.466539, 15.224036, 2.5173335, -8.201338, 5.9676433, 1.4593269, -0.52874434, 2.263092, 1.9885114)
-
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_q6msu"]
-friction = 0.55
-bounce = 0.05
-
-[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_a50op"]
-points = PackedVector3Array(2.2201476, 16.676146, 3.1866403, -3.4930234, 2.510198, 1.5868148, -2.8071377, 2.2796829, 1.5868148, 1.7631216, 16.220842, 1.5868148, 3.591919, 2.510198, 1.5868148, -3.4930234, 16.90666, 2.5007324, -3.4930234, 3.8818352, 2.2727227, -3.4930234, 14.6186905, 1.5868148, 3.591919, 3.8818352, 2.2727227, 3.591919, 16.90666, 2.2727227, -2.3501117, 15.991758, 3.1866403, 3.591919, 14.6186905, 1.5868148, -1.664226, 16.448494, 1.5868148, 1.7631216, 2.7378497, 2.04393, 2.2201476, 15.761243, 3.1866403, 3.591919, 16.90666, 2.5007324, -2.8071377, 2.2796829, 1.8156074, -2.121252, 16.676146, 3.1866403, -3.4930234, 16.90666, 2.2727227, 3.591919, 2.510198, 1.8156074, -2.121252, 15.761243, 3.1866403, -2.8071377, 2.7378497, 2.04393, 1.5349555, 2.2796829, 1.8156074, 3.591919, 15.30594, 2.5007324, -3.4930234, 15.30594, 2.5007324, -3.4930234, 2.9669333, 2.04393, 1.5349555, 2.2796829, 1.5868148, 3.591919, 2.9669333, 2.04393, -2.3501117, 16.448494, 3.1866403, -3.4930234, 2.510198, 1.8156074, -1.43606, 16.448494, 1.5868148)
-
-[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_4yogk"]
-friction = 0.55
-bounce = 0.05
-
-[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_ssw6p"]
-points = PackedVector3Array(2.2201476, 16.676146, 3.1866403, -3.4930234, 2.510198, 1.5868148, -2.8071377, 2.2796829, 1.5868148, 1.7631216, 16.220842, 1.5868148, 3.591919, 2.510198, 1.5868148, -3.4930234, 16.90666, 2.5007324, -3.4930234, 3.8818352, 2.2727227, -3.4930234, 14.6186905, 1.5868148, 3.591919, 3.8818352, 2.2727227, 3.591919, 16.90666, 2.2727227, -2.3501117, 15.991758, 3.1866403, 3.591919, 14.6186905, 1.5868148, -1.664226, 16.448494, 1.5868148, 1.7631216, 2.7378497, 2.04393, 2.2201476, 15.761243, 3.1866403, 3.591919, 16.90666, 2.5007324, -2.8071377, 2.2796829, 1.8156074, -2.121252, 16.676146, 3.1866403, -3.4930234, 16.90666, 2.2727227, 3.591919, 2.510198, 1.8156074, -2.121252, 15.761243, 3.1866403, -2.8071377, 2.7378497, 2.04393, 1.5349555, 2.2796829, 1.8156074, 3.591919, 15.30594, 2.5007324, -3.4930234, 15.30594, 2.5007324, -3.4930234, 2.9669333, 2.04393, 1.5349555, 2.2796829, 1.5868148, 3.591919, 2.9669333, 2.04393, -2.3501117, 16.448494, 3.1866403, -3.4930234, 2.510198, 1.8156074, -1.43606, 16.448494, 1.5868148)
-
 [node name="Main" type="Node3D" unique_id=632637122]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=865727830]
@@ -4189,6 +4073,34 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 140, 73.63471, -4.5812955)
 
 [node name="Enemy" parent="." unique_id=992468638 instance=ExtResource("6_enemy")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 73.20043, -4.5812955)
+
+[node name="WaveSpawner" type="Node3D" parent="." unique_id=756128306]
+script = ExtResource("6_wavespawner")
+enemy_scene = ExtResource("6_enemy")
+
+[node name="CoinSpawner" type="Node3D" parent="." unique_id=26876668]
+script = ExtResource("6_coinspawner")
+coin_scene = ExtResource("6_coinscene")
+
+[node name="RoundUI" type="CanvasLayer" parent="." unique_id=1453353569]
+
+[node name="CoinLabel" type="Label" parent="RoundUI" unique_id=1399822732]
+visible = false
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -320.0
+offset_top = 24.0
+offset_right = -32.0
+offset_bottom = 88.0
+grow_horizontal = 0
+theme_override_colors/font_color = Color(1, 0.9, 0.45, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 34
+text = "COINS  0/10"
+horizontal_alignment = 2
+vertical_alignment = 1
 
 [node name="crate_steak2" type="RigidBody3D" parent="." unique_id=1021670356 groups=["draggable", "navmesh_source"]]
 transform = Transform3D(0.98831415, -0.010196812, 0.1520895, 0.010308513, 0.9999469, 5.4049597e-05, -0.15208197, 0.0015143987, 0.9883667, -5.957536, 73.63471, 51.038216)
@@ -17483,10 +17395,10 @@ shape = SubResource("ConvexPolygonShape3D_velte")
 [node name="CollisionShape3D2" type="CollisionShape3D" parent="windturbine_tall2" unique_id=34203065]
 shape = SubResource("ConvexPolygonShape3D_43uln")
 
-[node name="banner_blue2" type="RigidBody3D" parent="." unique_id=1596307728 groups=["draggable", "navmesh_source"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 111.53185, 73.94441, -23.418262)
-mass = 2.7341588
-physics_material_override = SubResource("PhysicsMaterial_kk6o1")
+[node name="table_long_decorated_A3" type="RigidBody3D" parent="." unique_id=705762479 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.6318396, -0.00445032, 0.7750864, 0.0070272125, 0.9999753, 1.30809785e-05, -0.7750673, 0.005438431, 0.63185525, -52.851738, 73.6347, 59.34913)
+mass = 28.394318
+physics_material_override = SubResource("PhysicsMaterial_rq3ob")
 sleeping = true
 freeze = true
 freeze_mode = 1
@@ -17496,24 +17408,24 @@ linear_damp = 0.6
 angular_damp_mode = 1
 angular_damp = 1.2
 
-[node name="Model" parent="banner_blue2" unique_id=1696171427 instance=ExtResource("356_4m8vs")]
+[node name="Model" parent="table_long_decorated_A3" unique_id=2022183111 instance=ExtResource("257_tswvi")]
 transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="banner_blue2" unique_id=763069025]
-shape = SubResource("ConvexPolygonShape3D_t2f8s")
-
-[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="banner_blue2" unique_id=144596048]
-radius = 3.54247
-height = 14.398326
-vertices = PackedVector3Array(-3.49302, 0, 1.58681, 3.59192, 0, 1.58681, 3.59192, 0, 3.18664, -3.49302, 0, 3.18664)
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="table_long_decorated_A3" unique_id=1109498212]
+radius = 9.15212
+height = 8.495144
+vertices = PackedVector3Array(-4.78604, 0, -9.15302, 4.65206, 0, -9.15302, 4.65206, 0, 9.15123, -4.78604, 0, 9.15123)
 affect_navigation_mesh = true
 carve_navigation_mesh = true
 avoidance_enabled = false
 
-[node name="banner_patternA_blue2" type="RigidBody3D" parent="." unique_id=1081411593 groups=["draggable", "navmesh_source"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103.76721, 73.91466, -34.108482)
-mass = 2.7341588
-physics_material_override = SubResource("PhysicsMaterial_i3k88")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="table_long_decorated_A3" unique_id=872423807]
+shape = SubResource("ConvexPolygonShape3D_t08ny")
+
+[node name="table_medium3" type="RigidBody3D" parent="." unique_id=1315749308 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.699224, -0.004646353, 0.7148875, 0.0048598195, 0.99998665, 0.0017459914, -0.7148861, 0.0022533853, 0.6992373, -45.72302, 73.6347, 47.95952)
+mass = 7.31433
+physics_material_override = SubResource("PhysicsMaterial_lcr4u")
 sleeping = true
 freeze = true
 freeze_mode = 1
@@ -17523,24 +17435,24 @@ linear_damp = 0.6
 angular_damp_mode = 1
 angular_damp = 1.2
 
-[node name="Model" parent="banner_patternA_blue2" unique_id=1892922576 instance=ExtResource("357_rmx21")]
+[node name="Model" parent="table_medium3" unique_id=1485556982 instance=ExtResource("258_mrrqv")]
 transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="banner_patternA_blue2" unique_id=1121025759]
-shape = SubResource("ConvexPolygonShape3D_vb4un")
-
-[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="banner_patternA_blue2" unique_id=41155505]
-radius = 3.54247
-height = 14.398326
-vertices = PackedVector3Array(-3.49302, 0, 1.58681, 3.59192, 0, 1.58681, 3.59192, 0, 3.18664, -3.49302, 0, 3.18664)
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="table_medium3" unique_id=353215245]
+radius = 4.42895
+height = 4.5049996
+vertices = PackedVector3Array(-4.428, 0, -4.42895, 4.42702, 0, -4.42895, 4.42702, 0, 4.42895, -4.428, 0, 4.42895)
 affect_navigation_mesh = true
 carve_navigation_mesh = true
 avoidance_enabled = false
 
-[node name="banner_patternA_yellow2" type="RigidBody3D" parent="." unique_id=1441863048 groups=["draggable", "navmesh_source"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 115.13601, 73.97957, -48.19622)
-mass = 2.7341588
-physics_material_override = SubResource("PhysicsMaterial_pfkhy")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="table_medium3" unique_id=335896088]
+shape = SubResource("ConvexPolygonShape3D_aaqpc")
+
+[node name="table_small3" type="RigidBody3D" parent="." unique_id=1396350821 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.6735027, -0.0023490067, 0.739181, 0.0037636475, 0.9999929, -0.00025140878, -0.7391751, 0.0029513407, 0.6735068, -45.525085, 73.6347, 40.93527)
+mass = 1.828582
+physics_material_override = SubResource("PhysicsMaterial_k4d3m")
 sleeping = true
 freeze = true
 freeze_mode = 1
@@ -17550,24 +17462,24 @@ linear_damp = 0.6
 angular_damp_mode = 1
 angular_damp = 1.2
 
-[node name="Model" parent="banner_patternA_yellow2" unique_id=1666066289 instance=ExtResource("358_beypw")]
+[node name="Model" parent="table_small3" unique_id=1178499395 instance=ExtResource("259_p5rge")]
 transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="banner_patternA_yellow2" unique_id=559358633]
-shape = SubResource("ConvexPolygonShape3D_p4s0x")
-
-[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="banner_patternA_yellow2" unique_id=1599566994]
-radius = 3.54247
-height = 14.398326
-vertices = PackedVector3Array(-3.49302, 0, 1.58681, 3.59192, 0, 1.58681, 3.59192, 0, 3.18664, -3.49302, 0, 3.18664)
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="table_small3" unique_id=2098429480]
+radius = 2.28825
+height = 4.505
+vertices = PackedVector3Array(-2.22725, 0, -2.28916, 2.22011, 0, -2.28916, 2.22011, 0, 2.28735, -2.22725, 0, 2.28735)
 affect_navigation_mesh = true
 carve_navigation_mesh = true
 avoidance_enabled = false
 
-[node name="banner_patternB_brown2" type="RigidBody3D" parent="." unique_id=1480587890 groups=["draggable", "navmesh_source"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 141.33069, 74.096176, -34.712715)
-mass = 2.7341588
-physics_material_override = SubResource("PhysicsMaterial_ilbxs")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="table_small3" unique_id=863221129]
+shape = SubResource("ConvexPolygonShape3D_xwmjo")
+
+[node name="table_medium_broken3" type="RigidBody3D" parent="." unique_id=2053771454 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.67355096, -0.0018187856, 0.73913866, 0.002861222, 0.999996, -0.00014665807, -0.7391353, 0.0022136213, 0.67355347, -51.61048, 73.64293, 37.153687)
+mass = 9.824322
+physics_material_override = SubResource("PhysicsMaterial_tp1lo")
 sleeping = true
 freeze = true
 freeze_mode = 1
@@ -17577,24 +17489,24 @@ linear_damp = 0.6
 angular_damp_mode = 1
 angular_damp = 1.2
 
-[node name="Model" parent="banner_patternB_brown2" unique_id=784229329 instance=ExtResource("359_dtnoj")]
+[node name="Model" parent="table_medium_broken3" unique_id=126037710 instance=ExtResource("260_q1ch5")]
 transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="banner_patternB_brown2" unique_id=997487965]
-shape = SubResource("ConvexPolygonShape3D_0tgus")
-
-[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="banner_patternB_brown2" unique_id=1904229403]
-radius = 3.54247
-height = 14.398326
-vertices = PackedVector3Array(-3.49302, 0, 1.58681, 3.59192, 0, 1.58681, 3.59192, 0, 3.18664, -3.49302, 0, 3.18664)
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="table_medium_broken3" unique_id=1812520975]
+radius = 5.5568
+height = 4.377794
+vertices = PackedVector3Array(-4.6269, 0, -4.41433, 5.59804, 0, -4.41433, 5.59804, 0, 6.69927, -4.6269, 0, 6.69927)
 affect_navigation_mesh = true
 carve_navigation_mesh = true
 avoidance_enabled = false
 
-[node name="banner_patternB_yellow2" type="RigidBody3D" parent="." unique_id=1020848475 groups=["draggable", "navmesh_source"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 129.65416, 74.035934, -29.20589)
-mass = 2.7341588
-physics_material_override = SubResource("PhysicsMaterial_3l0d5")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="table_medium_broken3" unique_id=571291215]
+shape = SubResource("ConvexPolygonShape3D_w0nys")
+
+[node name="table_medium_tablecloth_decorated_B3" type="RigidBody3D" parent="." unique_id=77833927 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.7856645, -0.00060156756, 0.6186525, 0.0047605108, 0.9999758, -0.005073304, -0.61863446, 0.006931016, 0.78564835, -40.675034, 73.6347, 28.147213)
+mass = 13.792739
+physics_material_override = SubResource("PhysicsMaterial_lbl1h")
 sleeping = true
 freeze = true
 freeze_mode = 1
@@ -17604,24 +17516,24 @@ linear_damp = 0.6
 angular_damp_mode = 1
 angular_damp = 1.2
 
-[node name="Model" parent="banner_patternB_yellow2" unique_id=1837398272 instance=ExtResource("360_i465x")]
+[node name="Model" parent="table_medium_tablecloth_decorated_B3" unique_id=9663582 instance=ExtResource("261_ossum")]
 transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="banner_patternB_yellow2" unique_id=1575646356]
-shape = SubResource("ConvexPolygonShape3D_ty2ic")
-
-[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="banner_patternB_yellow2" unique_id=479449703]
-radius = 3.54247
-height = 14.398326
-vertices = PackedVector3Array(-3.49302, 0, 1.58681, 3.59192, 0, 1.58681, 3.59192, 0, 3.18664, -3.49302, 0, 3.18664)
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="table_medium_tablecloth_decorated_B3" unique_id=1071385510]
+radius = 4.57651
+height = 8.495144
+vertices = PackedVector3Array(-4.43316, 0, -4.57651, 4.43316, 0, -4.57651, 4.43316, 0, 4.57651, -4.43316, 0, 4.57651)
 affect_navigation_mesh = true
 carve_navigation_mesh = true
 avoidance_enabled = false
 
-[node name="banner_patternC_red2" type="RigidBody3D" parent="." unique_id=918540375 groups=["draggable", "navmesh_source"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 133.89093, 74.05289, -24.393814)
-mass = 2.7341588
-physics_material_override = SubResource("PhysicsMaterial_yut3w")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="table_medium_tablecloth_decorated_B3" unique_id=2005788243]
+shape = SubResource("ConvexPolygonShape3D_whsi4")
+
+[node name="torch3" type="RigidBody3D" parent="." unique_id=2055065883 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.8586549, -0.0003179037, -0.51255417, -0.0030787722, 0.99997866, -0.0057779243, 0.512545, 0.0065392805, 0.85863554, -48.056377, 75.41438, 13.576256)
+mass = 0.5767531
+physics_material_override = SubResource("PhysicsMaterial_07l0t")
 sleeping = true
 freeze = true
 freeze_mode = 1
@@ -17631,24 +17543,24 @@ linear_damp = 0.6
 angular_damp_mode = 1
 angular_damp = 1.2
 
-[node name="Model" parent="banner_patternC_red2" unique_id=1487400073 instance=ExtResource("361_0t5ov")]
+[node name="Model" parent="torch3" unique_id=669232660 instance=ExtResource("262_aejp2")]
 transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="banner_patternC_red2" unique_id=1205546134]
-shape = SubResource("ConvexPolygonShape3D_ms3sn")
-
-[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="banner_patternC_red2" unique_id=316001115]
-radius = 3.54247
-height = 14.398326
-vertices = PackedVector3Array(-3.49302, 0, 1.58681, 3.59192, 0, 1.58681, 3.59192, 0, 3.18664, -3.49302, 0, 3.18664)
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="torch3" unique_id=938582103]
+radius = 1.26621
+height = 4.6924286
+vertices = PackedVector3Array(-1.27657, 0, -1.27657, 1.25584, 0, -1.27657, 1.25584, 0, 1.25584, -1.27657, 0, 1.25584)
 affect_navigation_mesh = true
 carve_navigation_mesh = true
 avoidance_enabled = false
 
-[node name="banner_shield_blue2" type="RigidBody3D" parent="." unique_id=359207826 groups=["draggable", "navmesh_source"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.87804, 74.04233, -50.03685)
-mass = 4.87995
-physics_material_override = SubResource("PhysicsMaterial_k2pt1")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="torch3" unique_id=339869668]
+shape = SubResource("ConvexPolygonShape3D_d364v")
+
+[node name="torch_mounted4" type="RigidBody3D" parent="." unique_id=1321508128 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.9974793, -0.0031025019, 0.07088992, 0.0033606365, 0.9999881, -0.0035223565, -0.07087812, 0.0037517133, 0.9974779, -30.863422, 75.350235, 19.034763)
+mass = 0.6583917
+physics_material_override = SubResource("PhysicsMaterial_tdrbm")
 sleeping = true
 freeze = true
 freeze_mode = 1
@@ -17658,24 +17570,24 @@ linear_damp = 0.6
 angular_damp_mode = 1
 angular_damp = 1.2
 
-[node name="Model" parent="banner_shield_blue2" unique_id=414080043 instance=ExtResource("362_p7sik")]
+[node name="Model" parent="torch_mounted4" unique_id=1938657229 instance=ExtResource("263_cdac7")]
 transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="banner_shield_blue2" unique_id=2050968045]
-shape = SubResource("ConvexPolygonShape3D_on5qx")
-
-[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="banner_shield_blue2" unique_id=2102526401]
-radius = 5.1423
-height = 14.398326
-vertices = PackedVector3Array(-5.14185, 0, 1.3066, 5.14274, 0, 1.3066, 5.14274, 0, 3.13498, -5.14185, 0, 3.13498)
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="torch_mounted4" unique_id=1936573911]
+radius = 1.44343
+height = 4.7864127
+vertices = PackedVector3Array(-1.27706, 0, -0.03771, 1.30566, 0, -0.03771, 1.30566, 0, 2.84914, -1.27706, 0, 2.84914)
 affect_navigation_mesh = true
 carve_navigation_mesh = true
 avoidance_enabled = false
 
-[node name="banner_shield_red2" type="RigidBody3D" parent="." unique_id=1649845939 groups=["draggable", "navmesh_source"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 133.27422, 74.068146, -49.787506)
-mass = 4.87995
-physics_material_override = SubResource("PhysicsMaterial_moewn")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="torch_mounted4" unique_id=1646000762]
+shape = SubResource("ConvexPolygonShape3D_e435f")
+
+[node name="table_small_decorated_A3" type="RigidBody3D" parent="." unique_id=1240159891 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.473193, -0.0034678588, 0.8809519, 0.0057249893, 0.99998325, 0.0008613136, -0.8809402, 0.0046358733, 0.4732049, -46.302536, 73.6347, 13.199682)
+mass = 3.7310426
+physics_material_override = SubResource("PhysicsMaterial_khr1a")
 sleeping = true
 freeze = true
 freeze_mode = 1
@@ -17685,24 +17597,24 @@ linear_damp = 0.6
 angular_damp_mode = 1
 angular_damp = 1.2
 
-[node name="Model" parent="banner_shield_red2" unique_id=594169580 instance=ExtResource("363_vptdc")]
+[node name="Model" parent="table_small_decorated_A3" unique_id=664065374 instance=ExtResource("264_u275w")]
 transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="banner_shield_red2" unique_id=1995790247]
-shape = SubResource("ConvexPolygonShape3D_ej1ox")
-
-[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="banner_shield_red2" unique_id=1011207326]
-radius = 5.1423
-height = 14.398326
-vertices = PackedVector3Array(-5.14185, 0, 1.3066, 5.14274, 0, 1.3066, 5.14274, 0, 3.13498, -5.14185, 0, 3.13498)
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="table_small_decorated_A3" unique_id=1032838]
+radius = 2.78246
+height = 7.3039556
+vertices = PackedVector3Array(-2.48948, 0, -2.85647, 2.2636, 0, -2.85647, 2.2636, 0, 2.70845, -2.48948, 0, 2.70845)
 affect_navigation_mesh = true
 carve_navigation_mesh = true
 avoidance_enabled = false
 
-[node name="banner_thin_blue2" type="RigidBody3D" parent="." unique_id=1296652822 groups=["draggable", "navmesh_source"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 144.38133, 74.13461, -67.789474)
-mass = 2.3110132
-physics_material_override = SubResource("PhysicsMaterial_oitb3")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="table_small_decorated_A3" unique_id=1538331830]
+shape = SubResource("ConvexPolygonShape3D_qycil")
+
+[node name="torch_mounted5" type="RigidBody3D" parent="." unique_id=1734252657 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.7753276, 0.0019297693, 0.63155633, 0.0025378969, 0.99997777, -0.006171148, -0.6315542, 0.0063874843, 0.7753054, -49.832886, 75.350235, 19.084497)
+mass = 0.6583917
+physics_material_override = SubResource("PhysicsMaterial_oxkrt")
 sleeping = true
 freeze = true
 freeze_mode = 1
@@ -17712,24 +17624,24 @@ linear_damp = 0.6
 angular_damp_mode = 1
 angular_damp = 1.2
 
-[node name="Model" parent="banner_thin_blue2" unique_id=1822617773 instance=ExtResource("364_o8yci")]
+[node name="Model" parent="torch_mounted5" unique_id=887871441 instance=ExtResource("263_cdac7")]
 transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="banner_thin_blue2" unique_id=143869543]
-shape = SubResource("ConvexPolygonShape3D_dbamv")
-
-[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="banner_thin_blue2" unique_id=194844389]
-radius = 2.60781
-height = 14.285935
-vertices = PackedVector3Array(-2.59113, 0, 1.47841, 2.62448, 0, 1.47841, 2.62448, 0, 3.29218, -2.59113, 0, 3.29218)
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="torch_mounted5" unique_id=1225869423]
+radius = 1.44343
+height = 4.7864127
+vertices = PackedVector3Array(-1.27706, 0, -0.03771, 1.30566, 0, -0.03771, 1.30566, 0, 2.84914, -1.27706, 0, 2.84914)
 affect_navigation_mesh = true
 carve_navigation_mesh = true
 avoidance_enabled = false
 
-[node name="banner_thin_red2" type="RigidBody3D" parent="." unique_id=1752891834 groups=["draggable", "navmesh_source"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 156.32014, 74.161194, -24.657387)
-mass = 2.3110132
-physics_material_override = SubResource("PhysicsMaterial_0u7d2")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="torch_mounted5" unique_id=464238977]
+shape = SubResource("ConvexPolygonShape3D_sgtr0")
+
+[node name="trunk_medium_A3" type="RigidBody3D" parent="." unique_id=1655712934 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.89616805, -0.019383926, 0.44329125, 0.022221075, 0.99975246, -0.0012061829, -0.4431581, 0.010931349, 0.8963769, -22.617546, 73.6347, 20.526764)
+mass = 1.1078346
+physics_material_override = SubResource("PhysicsMaterial_6d55m")
 sleeping = true
 freeze = true
 freeze_mode = 1
@@ -17739,24 +17651,24 @@ linear_damp = 0.6
 angular_damp_mode = 1
 angular_damp = 1.2
 
-[node name="Model" parent="banner_thin_red2" unique_id=2084200013 instance=ExtResource("365_dfq5o")]
+[node name="Model" parent="trunk_medium_A3" unique_id=777808461 instance=ExtResource("265_6y0dx")]
 transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="banner_thin_red2" unique_id=1033213830]
-shape = SubResource("ConvexPolygonShape3D_ctjri")
-
-[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="banner_thin_red2" unique_id=1336863195]
-radius = 2.60781
-height = 14.285935
-vertices = PackedVector3Array(-2.59113, 0, 1.47841, 2.62448, 0, 1.47841, 2.62448, 0, 3.29218, -2.59113, 0, 3.29218)
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="trunk_medium_A3" unique_id=1484811521]
+radius = 2.099
+height = 3.2727423
+vertices = PackedVector3Array(-2.09842, 0, -1.93428, 2.09959, 0, -1.93428, 2.09959, 0, 1.93412, -2.09842, 0, 1.93412)
 affect_navigation_mesh = true
 carve_navigation_mesh = true
 avoidance_enabled = false
 
-[node name="banner_triple_blue2" type="RigidBody3D" parent="." unique_id=471243925 groups=["draggable", "navmesh_source"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 155.30515, 74.16234, -33.054672)
-mass = 7.834536
-physics_material_override = SubResource("PhysicsMaterial_e4gto")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="trunk_medium_A3" unique_id=1706595006]
+shape = SubResource("ConvexPolygonShape3D_x3avx")
+
+[node name="trunk_medium_C3" type="RigidBody3D" parent="." unique_id=1607026544 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.37251335, -0.008348813, 0.9279893, 0.00763779, 0.9999534, 0.00593029, -0.92799544, 0.0048786756, 0.3725597, -35.171577, 73.6347, 15.451086)
+mass = 1.1078346
+physics_material_override = SubResource("PhysicsMaterial_ky208")
 sleeping = true
 freeze = true
 freeze_mode = 1
@@ -17766,24 +17678,24 @@ linear_damp = 0.6
 angular_damp_mode = 1
 angular_damp = 1.2
 
-[node name="Model" parent="banner_triple_blue2" unique_id=125733666 instance=ExtResource("366_80ot5")]
+[node name="Model" parent="trunk_medium_C3" unique_id=1593684350 instance=ExtResource("266_3210h")]
 transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="banner_triple_blue2" unique_id=696248282]
-shape = SubResource("ConvexPolygonShape3D_ikpla")
-
-[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="banner_triple_blue2" unique_id=873690170]
-radius = 8.46654
-height = 14.398326
-vertices = PackedVector3Array(-8.46654, 0, 1.45933, 8.46654, 0, 1.45933, 8.46654, 0, 3.31138, -8.46654, 0, 3.31138)
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="trunk_medium_C3" unique_id=233937888]
+radius = 2.099
+height = 3.2727423
+vertices = PackedVector3Array(-2.09842, 0, -1.93428, 2.09959, 0, -1.93428, 2.09959, 0, 1.93412, -2.09842, 0, 1.93412)
 affect_navigation_mesh = true
 carve_navigation_mesh = true
 avoidance_enabled = false
 
-[node name="banner_triple_brown2" type="RigidBody3D" parent="." unique_id=1450728043 groups=["draggable", "navmesh_source"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 137.78568, 74.09802, -61.06862)
-mass = 7.834536
-physics_material_override = SubResource("PhysicsMaterial_y0kwl")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="trunk_medium_C3" unique_id=401118209]
+shape = SubResource("ConvexPolygonShape3D_nm7al")
+
+[node name="trunk_small_C3" type="RigidBody3D" parent="." unique_id=166466024 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.5189197, -0.012104962, 0.8547372, 0.008771941, 0.9999225, 0.008835571, -0.85477793, 0.0029127528, 0.5189857, -24.80045, 73.6347, 39.91932)
+mass = 0.3489126
+physics_material_override = SubResource("PhysicsMaterial_y2j2x")
 sleeping = true
 freeze = true
 freeze_mode = 1
@@ -17793,24 +17705,24 @@ linear_damp = 0.6
 angular_damp_mode = 1
 angular_damp = 1.2
 
-[node name="Model" parent="banner_triple_brown2" unique_id=1246644862 instance=ExtResource("367_f5wba")]
+[node name="Model" parent="trunk_small_C3" unique_id=193976993 instance=ExtResource("267_hu3bx")]
 transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="banner_triple_brown2" unique_id=976083772]
-shape = SubResource("ConvexPolygonShape3D_epb8g")
-
-[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="banner_triple_brown2" unique_id=445732939]
-radius = 8.46654
-height = 14.398326
-vertices = PackedVector3Array(-8.46654, 0, 1.45933, 8.46654, 0, 1.45933, 8.46654, 0, 3.31138, -8.46654, 0, 3.31138)
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="trunk_small_C3" unique_id=32373395]
+radius = 1.48287
+height = 2.1818283
+vertices = PackedVector3Array(-1.48321, 0, -1.29047, 1.48254, 0, -1.29047, 1.48254, 0, 1.26549, -1.48321, 0, 1.26549)
 affect_navigation_mesh = true
 carve_navigation_mesh = true
 avoidance_enabled = false
 
-[node name="banner_triple_white2" type="RigidBody3D" parent="." unique_id=956540061 groups=["draggable", "navmesh_source"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 134.97241, 74.09126, -70.5789)
-mass = 7.834536
-physics_material_override = SubResource("PhysicsMaterial_ud42e")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="trunk_small_C3" unique_id=400050181]
+shape = SubResource("ConvexPolygonShape3D_514nb")
+
+[node name="wall_archedwindow_open3" type="RigidBody3D" parent="." unique_id=1565424994 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.7506623, -0.0033491906, 0.66067755, 0.004808224, 0.9999884, -0.00039383888, -0.6606685, 0.0034723252, 0.7506696, -5.8165913, 73.6347, 32.536575)
+mass = 29.25731
+physics_material_override = SubResource("PhysicsMaterial_1amux")
 sleeping = true
 freeze = true
 freeze_mode = 1
@@ -17820,24 +17732,24 @@ linear_damp = 0.6
 angular_damp_mode = 1
 angular_damp = 1.2
 
-[node name="Model" parent="banner_triple_white2" unique_id=1544299038 instance=ExtResource("368_cox6b")]
+[node name="Model" parent="wall_archedwindow_open3" unique_id=555445567 instance=ExtResource("268_buvqr")]
 transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="banner_triple_white2" unique_id=325914476]
-shape = SubResource("ConvexPolygonShape3D_glrj1")
-
-[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="banner_triple_white2" unique_id=666747702]
-radius = 8.46654
-height = 14.398326
-vertices = PackedVector3Array(-8.46654, 0, 1.45933, 8.46654, 0, 1.45933, 8.46654, 0, 3.31138, -8.46654, 0, 3.31138)
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="wall_archedwindow_open3" unique_id=1612904171]
+radius = 8.6146
+height = 18.02
+vertices = PackedVector3Array(-8.6146, 0, -2.2525, 8.6146, 0, -2.2525, 8.6146, 0, 2.2525, -8.6146, 0, 2.2525)
 affect_navigation_mesh = true
 carve_navigation_mesh = true
 avoidance_enabled = false
 
-[node name="banner_yellow2" type="RigidBody3D" parent="." unique_id=772105652 groups=["draggable", "navmesh_source"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 156.20532, 74.19519, -72.74987)
-mass = 2.7341588
-physics_material_override = SubResource("PhysicsMaterial_q6msu")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wall_archedwindow_open3" unique_id=1813787126]
+shape = SubResource("ConvexPolygonShape3D_j00fw")
+
+[node name="wall_broken3" type="RigidBody3D" parent="." unique_id=1962035132 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.6333386, -0.0042222366, 0.77386326, 0.004948753, 0.99998677, 0.0014058615, -0.77385896, 0.0029392717, 0.6333511, -23.938038, 73.634705, 52.535126)
+mass = 29.257307
+physics_material_override = SubResource("PhysicsMaterial_s8bkq")
 sleeping = true
 freeze = true
 freeze_mode = 1
@@ -17847,24 +17759,24 @@ linear_damp = 0.6
 angular_damp_mode = 1
 angular_damp = 1.2
 
-[node name="Model" parent="banner_yellow2" unique_id=290808627 instance=ExtResource("369_gfa0u")]
+[node name="Model" parent="wall_broken3" unique_id=418357050 instance=ExtResource("269_g1xkl")]
 transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="banner_yellow2" unique_id=1935212027]
-shape = SubResource("ConvexPolygonShape3D_a50op")
-
-[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="banner_yellow2" unique_id=1876513722]
-radius = 3.54247
-height = 14.398326
-vertices = PackedVector3Array(-3.49302, 0, 1.58681, 3.59192, 0, 1.58681, 3.59192, 0, 3.18664, -3.49302, 0, 3.18664)
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="wall_broken3" unique_id=177920150]
+radius = 8.6146
+height = 18.02
+vertices = PackedVector3Array(-8.6146, 0, -2.2525, 8.6146, 0, -2.2525, 8.6146, 0, 2.2525, -8.6146, 0, 2.2525)
 affect_navigation_mesh = true
 carve_navigation_mesh = true
 avoidance_enabled = false
 
-[node name="banner_yellow3" type="RigidBody3D" parent="." unique_id=1496005639 groups=["draggable", "navmesh_source"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 158.41634, 74.19997, -64.57631)
-mass = 2.7341588
-physics_material_override = SubResource("PhysicsMaterial_4yogk")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wall_broken3" unique_id=1653719854]
+shape = SubResource("ConvexPolygonShape3D_bpd0b")
+
+[node name="wall_corner_gated3" type="RigidBody3D" parent="." unique_id=695516172 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.4981426, -0.004015793, 0.86708575, 0.006661414, 0.99997747, 0.00080426765, -0.8670695, 0.005375378, 0.49815822, -31.971176, 73.6347, 42.41201)
+mass = 45.715942
+physics_material_override = SubResource("PhysicsMaterial_w5v78")
 sleeping = true
 freeze = true
 freeze_mode = 1
@@ -17874,16 +17786,532 @@ linear_damp = 0.6
 angular_damp_mode = 1
 angular_damp = 1.2
 
-[node name="Model" parent="banner_yellow3" unique_id=2019102085 instance=ExtResource("369_gfa0u")]
+[node name="Model" parent="wall_corner_gated3" unique_id=505936478 instance=ExtResource("270_pu0op")]
 transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="banner_yellow3" unique_id=1688376704]
-shape = SubResource("ConvexPolygonShape3D_ssw6p")
-
-[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="banner_yellow3" unique_id=1596760641]
-radius = 3.54247
-height = 14.398326
-vertices = PackedVector3Array(-3.49302, 0, 1.58681, 3.59192, 0, 1.58681, 3.59192, 0, 3.18664, -3.49302, 0, 3.18664)
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="wall_corner_gated3" unique_id=2102498949]
+radius = 5.72008
+height = 18.02
+vertices = PackedVector3Array(-9.1519, 0, -2.2525, 2.28825, 0, -2.2525, 2.28825, 0, 9.04575, -9.1519, 0, 9.04575)
 affect_navigation_mesh = true
 carve_navigation_mesh = true
 avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wall_corner_gated3" unique_id=214925282]
+shape = SubResource("ConvexPolygonShape3D_8xlid")
+
+[node name="wall_crossing3" type="RigidBody3D" parent="." unique_id=190144682 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.6129499, -0.07622851, 0.78643596, 0.11970476, 0.9928053, 0.0029335325, -0.78100145, 0.09234202, 0.6176648, -33.930607, 73.6347, 52.470886)
+mass = 60.0
+physics_material_override = SubResource("PhysicsMaterial_cxyk1")
+sleeping = true
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="wall_crossing3" unique_id=1172586694 instance=ExtResource("271_grbm7")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="wall_crossing3" unique_id=610710197]
+radius = 9.15249
+height = 18.02
+vertices = PackedVector3Array(-9.15221, 0, -9.00955, 9.15277, 0, -9.00955, 9.15277, 0, 9.01045, -9.15221, 0, 9.01045)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wall_crossing3" unique_id=294101308]
+shape = SubResource("ConvexPolygonShape3D_sdl37")
+
+[node name="wall_doorway_Tsplit3" type="RigidBody3D" parent="." unique_id=1935404102 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.7834122, -0.045677487, 0.6198216, 0.08129156, 0.9962588, -0.029328113, -0.6161631, 0.07336227, 0.7841945, -38.732704, 73.6347, 25.079386)
+mass = 60.0
+physics_material_override = SubResource("PhysicsMaterial_deirn")
+sleeping = true
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="wall_doorway_Tsplit3" unique_id=793733046 instance=ExtResource("272_418jf")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="wall_doorway_Tsplit3" unique_id=1517055473]
+radius = 18.30603
+height = 18.02
+vertices = PackedVector3Array(-18.30603, 0, -2.2525, 18.30603, 0, -2.2525, 18.30603, 0, 9.01045, -18.30603, 0, 9.01045)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wall_doorway_Tsplit3" unique_id=147446867]
+shape = SubResource("ConvexPolygonShape3D_vxonw")
+
+[node name="wall_half_endcap3" type="RigidBody3D" parent="." unique_id=338174814 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.963294, -0.022314632, -0.2675195, -0.00040736282, 0.9964165, -0.08458109, 0.26844823, 0.08158542, 0.959833, -37.795105, 73.6347, 37.26263)
+mass = 14.628654
+physics_material_override = SubResource("PhysicsMaterial_20rw4")
+sleeping = true
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="wall_half_endcap3" unique_id=1814979371 instance=ExtResource("273_d0tj3")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="wall_half_endcap3" unique_id=2074361188]
+radius = 4.4377
+height = 18.02
+vertices = PackedVector3Array(-8.8754, 0, -2.2525, 0, 0, -2.2525, 0, 0, 2.2525, -8.8754, 0, 2.2525)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wall_half_endcap3" unique_id=472541139]
+shape = SubResource("ConvexPolygonShape3D_giah7")
+
+[node name="wall_scaffold3" type="RigidBody3D" parent="." unique_id=1462139306 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.7856874, -0.00039638905, 0.6186236, 0.0052949735, 0.9999674, -0.006084179, -0.61860114, 0.008055858, 0.78566384, -45.576893, 73.63469, 35.005344)
+mass = 29.257307
+physics_material_override = SubResource("PhysicsMaterial_xrspd")
+sleeping = true
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="wall_scaffold3" unique_id=32462274 instance=ExtResource("274_5gaip")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="wall_scaffold3" unique_id=2063029961]
+radius = 8.6146
+height = 18.02
+vertices = PackedVector3Array(-8.6146, 0, -2.2525, 8.6146, 0, -2.2525, 8.6146, 0, 2.2525, -8.6146, 0, 2.2525)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wall_scaffold3" unique_id=948260375]
+shape = SubResource("ConvexPolygonShape3D_b6te5")
+
+[node name="wall_sloped3" type="RigidBody3D" parent="." unique_id=340306668 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.85939586, -0.005377896, 0.51128256, 0.004597111, 0.9999855, 0.002791178, -0.5112902, -4.8303977e-05, 0.8594082, -14.415714, 73.6347, 72.672226)
+mass = 29.257307
+physics_material_override = SubResource("PhysicsMaterial_0htl5")
+sleeping = true
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="wall_sloped3" unique_id=909832875 instance=ExtResource("275_d2iqu")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="wall_sloped3" unique_id=1207246635]
+radius = 8.88381
+height = 18.02
+vertices = PackedVector3Array(-8.6146, 0, -2.39552, 9.15302, 0, -2.39552, 9.15302, 0, 2.46702, -8.6146, 0, 2.46702)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wall_sloped3" unique_id=1306686561]
+shape = SubResource("ConvexPolygonShape3D_nt2c7")
+
+[node name="wall_Tsplit3" type="RigidBody3D" parent="." unique_id=1607809019 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.74758524, -0.026063554, 0.66365427, 0.033893213, 0.9994249, 0.0010706023, -0.6633004, 0.021693002, 0.74803865, 30.064735, 73.6347, 28.251812)
+mass = 60.0
+physics_material_override = SubResource("PhysicsMaterial_krsxg")
+sleeping = true
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="wall_Tsplit3" unique_id=1875303491 instance=ExtResource("276_kaytx")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="wall_Tsplit3" unique_id=498326358]
+radius = 9.15212
+height = 18.02
+vertices = PackedVector3Array(-9.15302, 0, -2.2525, 9.15123, 0, -2.2525, 9.15123, 0, 9.04575, -9.15302, 0, 9.04575)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wall_Tsplit3" unique_id=1194847399]
+shape = SubResource("ConvexPolygonShape3D_rqurf")
+
+[node name="wall_window_closed_scaffold3" type="RigidBody3D" parent="." unique_id=1618886433 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.7637245, -0.003440841, 0.6455332, 0.0051441654, 0.9999866, -0.00075585593, -0.6455219, 0.0038979948, 0.7637319, 29.271938, 73.6347, 12.547448)
+mass = 29.257307
+physics_material_override = SubResource("PhysicsMaterial_gc61i")
+sleeping = true
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="wall_window_closed_scaffold3" unique_id=47161848 instance=ExtResource("277_d1ali")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="wall_window_closed_scaffold3" unique_id=942602814]
+radius = 8.6146
+height = 18.02
+vertices = PackedVector3Array(-8.6146, 0, -2.2525, 8.6146, 0, -2.2525, 8.6146, 0, 2.2525, -8.6146, 0, 2.2525)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wall_window_closed_scaffold3" unique_id=1562017972]
+shape = SubResource("ConvexPolygonShape3D_02rr4")
+
+[node name="wall_Tsplit_sloped3" type="RigidBody3D" parent="." unique_id=1111708074 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.77724314, -0.0434694, 0.6276969, 0.056619525, 0.9983953, -0.00096781284, -0.62664753, 0.03629213, 0.77845716, 54.217125, 73.6347, 21.66731)
+mass = 60.0
+physics_material_override = SubResource("PhysicsMaterial_yqumx")
+sleeping = true
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="wall_Tsplit_sloped3" unique_id=1699788730 instance=ExtResource("278_35uro")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="wall_Tsplit_sloped3" unique_id=1199229614]
+radius = 9.15302
+height = 18.02
+vertices = PackedVector3Array(-9.15302, 0, -2.2525, 9.15302, 0, -2.2525, 9.15302, 0, 9.04575, -9.15302, 0, 9.04575)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wall_Tsplit_sloped3" unique_id=1172614869]
+shape = SubResource("ConvexPolygonShape3D_0sw0c")
+
+[node name="wall_window_open_scaffold3" type="RigidBody3D" parent="." unique_id=1705518508 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.7133005, -0.065285206, 0.697811, 0.06762773, 0.9974174, 0.02418664, -0.6975878, 0.029939016, 0.7158734, 47.585545, 73.63469, 9.337721)
+mass = 29.257307
+physics_material_override = SubResource("PhysicsMaterial_7hlwd")
+sleeping = true
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="wall_window_open_scaffold3" unique_id=106807091 instance=ExtResource("279_3121y")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="wall_window_open_scaffold3" unique_id=654951654]
+radius = 8.8123
+height = 18.02
+vertices = PackedVector3Array(-8.6146, 0, -2.2525, 9.01, 0, -2.2525, 9.01, 0, 2.2525, -8.6146, 0, 2.2525)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wall_window_open_scaffold3" unique_id=1326428443]
+shape = SubResource("ConvexPolygonShape3D_fkbi8")
+
+[node name="basketball3" type="RigidBody3D" parent="." unique_id=1448383948 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.78032434, -0.0040168194, 0.62536204, 0.009599498, 0.9999385, -0.005555422, -0.62530124, 0.010338193, 0.7803148, 48.750607, 75.2978, 31.478653)
+mass = 0.7346912
+physics_material_override = SubResource("PhysicsMaterial_ptytc")
+sleeping = true
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="basketball3" unique_id=1287960163 instance=ExtResource("280_s85p3")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="basketball3" unique_id=1681575500]
+radius = 1.63051
+height = 3.3261933
+vertices = PackedVector3Array(-1.63051, 0, -1.62689, 1.6305, 0, -1.62689, 1.6305, 0, 1.63345, -1.63051, 0, 1.63345)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="basketball3" unique_id=1421043233]
+shape = SubResource("ConvexPolygonShape3D_gr2iy")
+
+[node name="candycane_small3" type="RigidBody3D" parent="." unique_id=2023960089 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.75937235, -0.005472618, 0.6506333, 0.004806599, 0.9999845, 0.0028011703, -0.6506386, 0.0010002023, 0.75938684, 46.897884, 75.20205, 49.974037)
+mass = 0.3
+physics_material_override = SubResource("PhysicsMaterial_hr0m8")
+sleeping = true
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="candycane_small3" unique_id=1338329171 instance=ExtResource("281_atwxi")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="candycane_small3" unique_id=1226995158]
+radius = 0.71012
+height = 2.6324182
+vertices = PackedVector3Array(-0.69956, 0, -0.27988, 0.72068, 0, -0.27988, 0.72068, 0, 0.26319, -0.69956, 0, 0.26319)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="candycane_small3" unique_id=1601662011]
+shape = SubResource("ConvexPolygonShape3D_viv0a")
+
+[node name="carpet_round_small3" type="RigidBody3D" parent="." unique_id=1646268598 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.69703794, -0.0031311205, 0.71702737, 0.004788054, 0.9999885, -0.00028781407, -0.71701825, 0.0036337827, 0.69704497, 37.2938, 73.72208, 15.276606)
+mass = 0.6494408
+physics_material_override = SubResource("PhysicsMaterial_cdwtp")
+sleeping = true
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="carpet_round_small3" unique_id=862851191 instance=ExtResource("282_7eev4")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="carpet_round_small3" unique_id=302748148]
+radius = 4.57651
+height = 0.4
+vertices = PackedVector3Array(-4.57651, 0, -4.57651, 4.57651, 0, -4.57651, 4.57651, 0, 4.57651, -4.57651, 0, 4.57651)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="carpet_round_small3" unique_id=503468928]
+shape = SubResource("ConvexPolygonShape3D_1kndd")
+
+[node name="chair_large_brown3" type="RigidBody3D" parent="." unique_id=80299712 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.8126419, -0.037942253, 0.5815267, 0.038628273, 0.9991906, 0.011212888, -0.58148146, 0.013351307, 0.8134499, 39.16649, 73.6347, 6.7404957)
+mass = 11.553219
+physics_material_override = SubResource("PhysicsMaterial_tbkiu")
+sleeping = true
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="chair_large_brown3" unique_id=464348486 instance=ExtResource("283_a5vk1")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="chair_large_brown3" unique_id=1962953700]
+radius = 4.13697
+height = 9.628194
+vertices = PackedVector3Array(-4.20029, 0, -4.32059, 4.07365, 0, -4.32059, 4.07365, 0, 3.02261, -4.20029, 0, 3.02261)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="chair_large_brown3" unique_id=1711322507]
+shape = SubResource("ConvexPolygonShape3D_86k8t")
+
+[node name="chair_large_red3" type="RigidBody3D" parent="." unique_id=1372188983 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.6173676, -0.05093089, 0.7850243, 0.043369025, 0.99858785, 0.030679727, -0.7854783, 0.015105071, 0.6187047, 63.991875, 73.6347, 22.19385)
+mass = 11.553219
+physics_material_override = SubResource("PhysicsMaterial_r64j1")
+sleeping = true
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="chair_large_red3" unique_id=2053898887 instance=ExtResource("284_pvghl")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="chair_large_red3" unique_id=1626190993]
+radius = 4.13697
+height = 9.628194
+vertices = PackedVector3Array(-4.20029, 0, -4.32059, 4.07365, 0, -4.32059, 4.07365, 0, 3.02333, -4.20029, 0, 3.02333)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="chair_large_red3" unique_id=811606878]
+shape = SubResource("ConvexPolygonShape3D_ym5us")
+
+[node name="christmas_tree3" type="RigidBody3D" parent="." unique_id=1735623783 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.75392187, -0.0026411274, 0.6569589, 0.0048444406, 0.9999872, -0.0015392684, -0.6569463, 0.004343086, 0.7539249, 78.68544, 73.6347, 39.784508)
+mass = 41.325817
+physics_material_override = SubResource("PhysicsMaterial_ooa2s")
+sleeping = true
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="christmas_tree3" unique_id=1901045145 instance=ExtResource("285_g7fgh")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="christmas_tree3" unique_id=1811595634]
+radius = 5.47574
+height = 18.158453
+vertices = PackedVector3Array(-5.56948, 0, -5.27216, 5.38199, 0, -5.27216, 5.38199, 0, 5.39225, -5.56948, 0, 5.39225)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="christmas_tree3" unique_id=1971534851]
+shape = SubResource("ConvexPolygonShape3D_dcbwg")
+
+[node name="christmas_tree_decorated3" type="RigidBody3D" parent="." unique_id=937560758 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.6528331, 0.49246585, -0.57557476, -0.5072982, -0.28004387, -0.8149996, -0.5625456, 0.82404673, 0.0670051, 73.37731, 72.469536, 28.311548)
+mass = 60.0
+physics_material_override = SubResource("PhysicsMaterial_8epjn")
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_velocity = Vector3(-4.470348e-07, -1.7881392e-06, -8.940696e-07)
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="christmas_tree_decorated3" unique_id=1289722663 instance=ExtResource("286_686lp")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="christmas_tree_decorated3" unique_id=880640182]
+radius = 6.65563
+height = 19.059452
+vertices = PackedVector3Array(-6.72721, 0, -6.72721, 6.28045, 0, -6.72721, 6.28045, 0, 6.58405, -6.72721, 0, 6.58405)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="christmas_tree_decorated3" unique_id=309036972]
+shape = SubResource("ConvexPolygonShape3D_ve8id")
+
+[node name="footstool_blue4" type="RigidBody3D" parent="." unique_id=1686173145 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.81239706, -0.031750567, 0.58223945, 0.03184057, 0.99944216, 0.010074323, -0.5822345, 0.010354485, 0.8129549, 41.90405, 73.6377, 3.1018028)
+mass = 0.46124172
+physics_material_override = SubResource("PhysicsMaterial_satwy")
+sleeping = true
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="footstool_blue4" unique_id=2004783561 instance=ExtResource("287_nanic")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="footstool_blue4" unique_id=1138626131]
+radius = 1.82212
+height = 2.0023186
+vertices = PackedVector3Array(-1.82176, 0, -1.51975, 1.82248, 0, -1.51975, 1.82248, 0, 1.54714, -1.82176, 0, 1.54714)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="footstool_blue4" unique_id=765316664]
+shape = SubResource("ConvexPolygonShape3D_7mayr")
+
+[node name="cookie3" type="RigidBody3D" parent="." unique_id=1795556772 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.741127, 0.003881456, 0.6713536, 0.00023013656, 0.99998176, -0.006035487, -0.6713647, 0.004627565, 0.7411126, 17.481625, 73.634056, -7.192259)
+mass = 0.3
+physics_material_override = SubResource("PhysicsMaterial_toowc")
+sleeping = true
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="cookie3" unique_id=1423831067 instance=ExtResource("288_kh4p2")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="cookie3" unique_id=1445158082]
+radius = 1.16737
+height = 0.6999569
+vertices = PackedVector3Array(-1.12065, 0, -1.21408, 1.11079, 0, -1.21408, 1.11079, 0, 1.12066, -1.12065, 0, 1.12066)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="cookie3" unique_id=1921622049]
+shape = SubResource("ConvexPolygonShape3D_s6k5f")
+
+[node name="christmas_tree_base3" type="RigidBody3D" parent="." unique_id=1540203823 groups=["draggable", "navmesh_source"]]
+transform = Transform3D(0.6921368, -0.15104231, 0.7057853, 0.20250468, 0.97921985, 0.010970317, -0.6927759, 0.13533184, 0.70834094, 1.8413553, 73.6347, -10.70566)
+mass = 0.7391899
+physics_material_override = SubResource("PhysicsMaterial_bramf")
+sleeping = true
+freeze = true
+freeze_mode = 1
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.6
+angular_damp_mode = 1
+angular_damp = 1.2
+
+[node name="Model" parent="christmas_tree_base3" unique_id=294572981 instance=ExtResource("289_3ax6k")]
+transform = Transform3D(4.505, 0, 0, 0, 4.505, 0, 0, 0, 4.505, 0, 0, 0)
+
+[node name="NavigationObstacle3D" type="NavigationObstacle3D" parent="christmas_tree_base3" unique_id=2117802448]
+radius = 1.97472
+height = 2.2517219
+vertices = PackedVector3Array(-1.96579, 0, -1.98364, 1.98145, 0, -1.98364, 1.98145, 0, 1.96579, -1.96579, 0, 1.96579)
+affect_navigation_mesh = true
+carve_navigation_mesh = true
+avoidance_enabled = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="christmas_tree_base3" unique_id=1023990509]
+shape = SubResource("ConvexPolygonShape3D_fcsax")
+
+[node name="coin_gold4" parent="." unique_id=1373417099 instance=ExtResource("49_jnpch")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.425817, 73.36149, 66.637634)

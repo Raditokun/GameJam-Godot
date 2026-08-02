@@ -99,6 +99,11 @@ early during PREPARATION, so click / wheel / reach all belong to BuildMode.
 - `Navigation` (NavigationRegion3D + `NavBaker.gd`) with its `NavSurface` child,
   `EnemyGoal` (Marker3D, group `enemy_goal`) and an `Enemy` instance — the
   pathfinding prototype. See §2d.
+- `WaveSpawner` (Node3D + `WaveSpawner.gd`) — the timed wave system. See §2f.
+- `CoinSpawner` (Node3D + `CoinSpawner.gd`) — the collectible win condition. See §2g.
+- `RoundUI` (CanvasLayer) → `CoinLabel` — top-right "COINS n/10" readout, hidden
+  outside ACTION. Separate from the player's own HUD because it is a round-level
+  concern, not a first-person one.
 
 Obstacle scripting (`Obstacle.gd`, `BuildMode.gd`, §2c) still exists but has no
 nodes in `Main.tscn` right now — the block layout was reverted while the drag
@@ -371,6 +376,94 @@ it switches to CHASE, retargets onto the player and closes 20.6 → 2.4 units in
 1.5 s; teleport the player away and it holds the chase through `aggro_memory`
 then drops back to PATROL.
 
+### 2f. Wave Spawning (`scenes/WaveSpawner.gd`)
+
+`Main.tscn/WaveSpawner`, a Node3D. Owns every enemy on the board and is driven entirely
+off `GameState` — no node paths into the round logic.
+
+**The maths.** Wave 1 is `first_wave_size` (5) enemies the instant ACTION begins; every
+`wave_interval` (60 s) another wave arrives carrying `enemies_per_wave` (1) more than the
+last, so minute 1 = 6, minute 2 = 7. `max_live_enemies` (120) caps the board so a long
+round cannot melt the frame budget.
+
+**Phase integration.** Only `phase_changed` is connected, **not** `round_reset` —
+`GameState.reset_round()` emits both, and clearing twice double-reports through
+`enemies_cleared`. Entering PREPARATION stops the timer, rewinds the wave counter to 0
+and `queue_free()`s every enemy. `clear_enemies()` skips nodes already
+`is_queued_for_deletion()`, since a freed node stays in its group until the end of the
+frame.
+
+**Spawn points are generated, not placed.** The ring is built from the bounds of
+`area_path` — which defaults to `Navigation/NavSurface`, the tabletop. It is deliberately
+**not** `Floor`: that is a 292 × 224 slab at y = −0.5, ground geometry ~74 units *below*
+the bench, and spawning on its perimeter drops enemies onto the floor under the table.
+`fallback_area_path` points at `Floor` only as a last resort. `_area_bounds()` reads a
+box collision shape, then a `CSGBox3D.size`, then a `VisualInstance3D` AABB, so it works
+against any of the three.
+
+Every candidate is snapped with `NavigationServer3D.map_get_closest_point()` and dropped
+if the snap moved it more than `navmesh_tolerance` (2.5) — i.e. it landed inside a prop
+or off the walkable area. With `perimeter_inset` 8 and `perimeter_spacing` 6 that yields
+**106 valid points** on the current bench. `_ground()` then raycasts each spawn down onto
+the actual tabletop, because the navmesh bakes ~0.4 above the surface and the bench is
+slightly tilted, so a fixed height would either bury the capsule or drop it from mid-air.
+
+**Safe zone.** `_pick_point()` re-rolls up to `max_spawn_attempts` (24) until the point is
+at least `min_player_distance` (10 m) from the player, then falls back to the furthest
+candidate available so a player standing in the middle of the ring still gets a wave
+rather than nothing. Measured: 400 rolls with the player parked at the bench corner gave
+a closest spawn of 14.4 m.
+
+Enemies are positioned **before** `add_child()`: `Enemy._ready()` captures its own spawn
+transform to return to on a reset, so adding first and moving after records the wrong
+pose. Hand-placed enemies already in the scene are adopted into `enemy_group` by
+behaviour (`has_method("is_chasing")`), not node path, so the reset owns them too.
+
+Signals `wave_started(wave, count)` and `enemies_cleared(count)` are there for a HUD.
+Helpers: `current_wave()`, `next_wave_size()`, `spawn_point_count()`.
+
+### 2g. Coins & the Win Condition (`scenes/Coin.tscn`, `scenes/CoinSpawner.gd`)
+
+**`Coin.tscn`** — an `Area3D` (layer 0 / mask 1, so it senses the player and can never
+push them) wrapping `coin_gold.gltf` at 1.2×, stood on edge and spinning. Children:
+`Model`, a 4 m `SphereShape3D` trigger, a white `OmniLight3D` (`Glow`), and a billboarded
+`Label3D` (`Prompt`, "Press E") that is hidden until the player is inside the area.
+
+Walking over a coin does nothing — collection is deliberate. `Coin.gd` reads the key in
+**`_input`, not `_unhandled_input`**, and calls `set_input_as_handled()`. That ordering is
+load-bearing: `Player._unhandled_input()` binds the same `interact` action to prop
+pickup, so without consuming the event first one press would both collect the coin and
+grab a prop. Handling it in `_input` makes the outcome deterministic rather than
+dependent on tree order. Emits `collected(coin)`, then frees itself.
+
+**`CoinSpawner.gd`** places `coin_count` (10) coins on ACTION and owns the counter.
+
+Every candidate clears **two independent checks**, because either alone is insufficient:
+1. it snaps onto the navmesh within `navmesh_tolerance` (the player can path to it), and
+2. a `clearance_radius` (0.8) sphere at `clearance_height` (1.0) above the grounded point
+   touches nothing on layer 1. The sphere sits *above* the floor deliberately, so the
+   tabletop never registers and only real obstructions do.
+The navmesh check alone is not enough — carve outlines are 2D footprints, so a spot can
+be walkable and still sit under overhanging geometry.
+
+**Distance bands are cut by DISTANCE, not by index.** Slicing the sorted candidate list
+into equal-sized index slices sounds equivalent but is not: candidates cluster wherever
+the bench is open, so a sparse near-region stretches band 0 across a huge range and the
+"nearest" coin landed 68 m away. Slicing the distance span instead gives an even ladder.
+Measured with `sample_spacing` 4.0: 611 candidates, nearest coin 15.9 m, ladder
+16 / 57 / 65 / 104 / 118 / 143 / 158 / 177 / 199 / 229 m, 0 coins buried in geometry.
+`sample_spacing` matters a lot — at 7.0 only 173 candidates survive and the nearest coin
+is 48 m, because the cluttered corner the player starts in has no legal spot nearby.
+
+Candidates are rebuilt on **every** ACTION, since the player has just rearranged the maze
+and last round's list may now be buried. They are deliberately **not** built on the first
+synchronised physics frame: the map reports itself synchronised a frame or two before
+NavBaker's region is actually registered in it, so a build that early finds nothing and
+warns.
+
+Signals `coin_collected(collected, total)` and `all_coins_collected` are the hooks for a
+win screen. `all_coins_collected` currently has no listener — winning is not wired yet.
+
 ### 2e. Bulk Prop Conversion (`tools/`)
 
 `tools/BulkPropSetup.gd` (an `EditorScript`, run with **File → Run** in the
@@ -570,7 +663,7 @@ build tool, in ACTION they drive the weapons.
 | `slot_next` | Mouse wheel down | Action: cycle weapon forward. Preparation: rotate held object |
 | `slot_prev` | Mouse wheel up | Action: cycle weapon backward. Preparation: rotate held object |
 | `fire` | Left Click | Preparation: hold to drag a `draggable` object under the cursor. Pistol: shoot. Sword: melee swing. Carrying: throw the prop |
-| `interact` | E | Pick up the prop under the crosshair / put it down |
+| `interact` | E | Collect a coin when in range (consumes the press), otherwise pick up / put down the prop under the crosshair |
 | `reload` | R | Pistol only |
 | `ui_cancel` | Esc | Opens/closes SettingsMenu; pauses the tree while open |
 
@@ -645,6 +738,17 @@ editing the relevant section above over appending a changelog.
   navmesh does not, the carve is the culprit. **Also check the opposite failure:**
   an outline *smaller* than the prop leaves walkable slivers inside solid
   geometry and the agent jams against a wall it was told to walk through.
+- **A navigation map query before its first synchronisation fails outright.** It does not
+  return a poor answer, it errors with "query failed because it was made before first map
+  synchronization" and hands back a default — so `map_get_closest_point()` answers
+  `Vector3.ZERO` and any validation built on it silently passes everything. `_ready()` is
+  far too early, and **one physics frame is not enough either**. Poll
+  `NavigationServer3D.map_get_iteration_id(map)` until it is non-zero; that is the only
+  reliable ready signal.
+- **A `queue_free()`d node stays in its groups until the end of the frame.** Anything that
+  clears by group and reports a count will re-count the same nodes if it runs twice in one
+  frame. Guard with `is_queued_for_deletion()`. Relatedly, `GameState.reset_round()` emits
+  **both** `round_reset` and `phase_changed` — connecting a clear-out to both runs it twice.
 - **`is_navigation_finished()` does not mean "arrived".** It means the agent has
   run out of path. When a target is unreachable the agent gets a path to the
   closest reachable point, so it reports finished while still far away. Anything
