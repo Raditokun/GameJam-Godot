@@ -24,6 +24,10 @@ signal hit_target(collider: Object, point: Vector3)
 @export var attack_cooldown := 0.5
 ## Passed to a victim's take_damage() when one is hit.
 @export var damage := 40.0
+## Impulse in newton-seconds delivered to a physics prop that's hit. Enough to
+## send a table sliding, since a swing is a whole-body wallop, but the prop
+## clamps how much leverage it turns into spin (see Prop.hit_torque_arm).
+@export var knockback := 60.0
 
 @export_group("Slash Animation")
 ## Seconds for the swing itself -- fast, so it reads as a snap.
@@ -90,6 +94,10 @@ func _resolve_hit() -> void:
 	var collider := ray.get_collider()
 	if collider != null and collider.has_method("take_damage"):
 		collider.take_damage(damage)
+	# Physics props also take the swing's momentum, along the aim direction so
+	# the knock follows the crosshair rather than the blade's odd local axes.
+	if collider != null and collider.has_method("apply_hit"):
+		collider.apply_hit(point, -ray.global_basis.z, knockback)
 	hit_target.emit(collider, point)
 
 

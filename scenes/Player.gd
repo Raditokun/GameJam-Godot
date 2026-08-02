@@ -60,6 +60,40 @@ extends CharacterBody3D
 @export var crouch_transition_speed := 8.0
 
 
+# --- Props ---
+@export_group("Props")
+## Shove strength when walking into a physics prop, in newton-seconds per
+## metre-per-second of closing speed. Impulses scale with how fast you're
+## actually moving into the prop, so a prop drifts when you lean on it and
+## skids when you sprint into it.
+##
+## This has a hard floor to clear: each frame's impulse must beat the prop's
+## static friction (mu * mass * g * delta) or it is absorbed entirely and the
+## prop NEVER moves, however long you push. For the 25 kg table on a 0.6
+## friction floor that threshold is ~2.5 N-s per frame, and walking into it at
+## 7 m/s delivers push_force * 7 / 60. Lower this too far and props turn into
+## walls; the symptom is a prop that ignores you and then lurches when you back
+## away from it.
+@export var push_force := 120.0
+## How far the pickup ray reaches, in metres.
+@export var carry_range := 3.0
+## How far in front of the camera a carried prop is held, in metres. Held props
+## are pulled in closer than this when a wall is in the way.
+@export var carry_distance := 2.6
+## Stiffness of the carry "spring", in 1/seconds: the held prop is driven at
+## (offset to the hold point) * this. Higher snaps to the hold point harder.
+@export var carry_stiffness := 12.0
+## Ceiling on carry speed, in metres per second. Keeps a prop yanked around a
+## corner from launching itself.
+@export var carry_max_speed := 12.0
+## Drop the prop once it ends up this far from the hold point -- i.e. it got
+## wedged behind geometry and the carry spring can't reach it any more.
+@export var carry_break_distance := 3.0
+## Launch speed of a thrown prop, in metres per second. Converted to an impulse
+## with the prop's own mass, so heavy props still leave the hands at this speed.
+@export var throw_speed := 9.0
+
+
 # --- Debug HUD ---
 @export_group("Debug HUD")
 ## Source units per metre for the speed readout. A Source unit is one inch, so
@@ -72,6 +106,7 @@ extends CharacterBody3D
 @onready var collision_shape: CollisionShape3D = $CollisionShape3D
 @onready var mesh: MeshInstance3D = $MeshInstance3D
 @onready var stats_label: Label = $HUD/StatsLabel
+@onready var phase_label: Label = $HUD/PhaseLabel
 # Weapon slots in order: slot 1, slot 2. Reached with $ rather than exported
 # NodePaths because both live inside this scene; node exports only resolve when
 # the .tscn carries a node_paths= marker, which is easy to lose by hand.
@@ -103,6 +138,14 @@ var _stand_hull: CapsuleShape3D
 var _stand_height := 1.8
 var _stand_eye := 1.6
 
+# The prop currently in hand (null when empty-handed), and the weapon slot to
+# put back once it's dropped -- carrying holsters whatever was equipped.
+var _carried: Prop = null
+var _stowed_slot := 0
+
+# Pose the player is returned to when a round resets.
+var _spawn_transform := Transform3D.IDENTITY
+
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -119,9 +162,14 @@ func _ready() -> void:
 	_stand_hull = CapsuleShape3D.new()
 	_stand_hull.radius = _capsule.radius
 	_stand_hull.height = _stand_height
+	# Where a failed attempt puts the player back. Captured before anything can
+	# move them, so every retry starts from the same spot.
+	_spawn_transform = global_transform
+	GameState.phase_changed.connect(_on_phase_changed)
 	# Start on slot 1. This also drives the initial visibility of both weapons,
 	# overriding whatever `visible` the scene was saved with.
 	equip(0)
+	_on_phase_changed(GameState.phase)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -137,10 +185,36 @@ func _unhandled_input(event: InputEvent) -> void:
 		_pitch = clampf(_pitch - event.relative.y * look, -limit, limit)
 		head.rotation.x = _pitch
 
+	# Looking around stays live in every phase, but weapons and prop-carrying do
+	# not exist while building: the click, the wheel and the reach are all on
+	# loan to BuildMode until the layout is locked in.
+	if GameState.is_preparation():
+		return
+
 	# Weapon slots: number keys select directly, the wheel cycles. Handled here
 	# rather than in _physics_process so a quick tap can never be missed, and so
 	# switching is dead while the settings menu has the tree paused.
-	if event.is_action_pressed("slot_1"):
+	if event.is_action_pressed("interact"):
+		# Hands full -> put it down; empty -> grab whatever prop is in reach.
+		if _carried != null:
+			drop_prop()
+		else:
+			pick_up_prop()
+	elif _carried != null and event.is_action_pressed("fire"):
+		# With a prop in hand the fire button throws it instead of shooting --
+		# the weapons are holstered and never see this press.
+		throw_prop()
+	elif _carried != null:
+		# Weapons are holstered while carrying, so selecting a slot now would
+		# leave it hidden. Reaching for a weapon puts the prop down first.
+		if (
+			event.is_action_pressed("slot_1")
+			or event.is_action_pressed("slot_2")
+			or event.is_action_pressed("slot_next")
+			or event.is_action_pressed("slot_prev")
+		):
+			drop_prop()
+	elif event.is_action_pressed("slot_1"):
 		equip(0)
 	elif event.is_action_pressed("slot_2"):
 		equip(1)
@@ -192,13 +266,22 @@ func _physics_process(delta: float) -> void:
 		_jumped = false
 
 	_was_grounded = grounded
+	# move_and_slide() slides velocity along whatever it hits, so the speed the
+	# player was carrying INTO a prop is gone by the time the contacts can be
+	# read. Keep it here for _push_bodies().
+	var approach := velocity
 	move_and_slide()
+	# Both of these run after the move so they act on this frame's contacts and
+	# this frame's camera position.
+	_push_bodies(approach, delta)
+	_update_carry(delta)
 
 
 ## Refreshes the bottom-left stats readout each rendered frame. Velocity is the
 ## horizontal (XZ) speed in Source units -- that's the number bunny-hoppers
 ## watch, since vertical speed contributes nothing to strafe gain.
 func _process(_delta: float) -> void:
+	_update_phase_label()
 	var pos := global_position
 	stats_label.text = (
 		"Velocity: %.0f u/s\n"
@@ -215,6 +298,38 @@ func _process(_delta: float) -> void:
 	]
 
 
+## Swaps the player between builder and shooter.
+##
+## PREPARATION holsters everything: an empty pair of hands is the clearest
+## signal that the click now moves furniture instead of firing. ACTION hands the
+## previously selected weapon back.
+func _on_phase_changed(new_phase: int) -> void:
+	if new_phase == GameState.Phase.PREPARATION:
+		if _carried != null:
+			drop_prop()
+		for weapon in weapons:
+			weapon.equipped = false
+		# A reset is a retry, so put the player back where the attempt began.
+		global_transform = _spawn_transform
+		velocity = Vector3.ZERO
+		_pitch = 0.0
+		head.rotation.x = 0.0
+	else:
+		equip(_slot)
+
+
+## Bottom-centre phase readout: which half of the loop is running and the key
+## that leaves it.
+func _update_phase_label() -> void:
+	if GameState.is_preparation():
+		phase_label.text = (
+			"PREPARATION  -  attempt %d\n"
+			+ "LMB grab / place obstacle    WHEEL rotate    F lock in"
+		) % GameState.attempt
+	else:
+		phase_label.text = "ACTION  -  attempt %d\nG restart" % GameState.attempt
+
+
 ## Puts exactly one weapon in the player's hands: the equipped one shows itself
 ## and reads fire input, the rest hide and go inert. The index wraps, so cycling
 ## with the wheel runs off either end back around.
@@ -224,6 +339,132 @@ func equip(slot: int) -> void:
 	_slot = wrapi(slot, 0, weapons.size())
 	for i in weapons.size():
 		weapons[i].equipped = i == _slot
+
+
+## Shoves any physics prop the capsule slid against this frame. A CharacterBody3D
+## carries no mass of its own, so without this the player just glides along
+## rigid bodies as if they were walls. The impulse is horizontal-only (walking
+## into a table slides it, it doesn't flip it) and scales with closing speed, so
+## leaning on a prop nudges it and sprinting into it sends it skidding.
+##
+## `approach` is the velocity from BEFORE move_and_slide() -- afterwards it has
+## been slid along the contact and no longer says how hard the player pushed.
+func _push_bodies(approach: Vector3, delta: float) -> void:
+	for i in get_slide_collision_count():
+		var collision := get_slide_collision(i)
+		var body := collision.get_collider()
+		# The carried prop is steered by _update_carry(); shoving it as well
+		# would fight that and make it buzz against the player.
+		if not body is RigidBody3D or body == _carried:
+			continue
+
+		var push_dir := -collision.get_normal()
+		push_dir.y = 0.0
+		if push_dir.length_squared() < 0.001:
+			continue
+		push_dir = push_dir.normalized()
+
+		# Only the part of the player's motion heading INTO the prop counts, so
+		# sliding along a prop's edge barely disturbs it.
+		var closing := approach.dot(push_dir)
+		if closing <= 0.0:
+			continue
+
+		# Applied at the contact point (levelled to the prop's centre height) so
+		# a corner hit spins the prop instead of sliding it flat.
+		var arm := collision.get_position() - (body as RigidBody3D).global_position
+		arm.y = 0.0
+		(body as RigidBody3D).apply_impulse(push_dir * closing * push_force * delta, arm)
+
+
+## Picks up the prop under the crosshair, if it's in range and carryable.
+## Holsters the current weapon for as long as it's held -- you can't aim a
+## pistol with a table in your arms.
+func pick_up_prop() -> void:
+	if _carried != null:
+		return
+	var query := PhysicsRayQueryParameters3D.create(
+		camera.global_position,
+		camera.global_position - camera.global_basis.z * carry_range
+	)
+	query.exclude = [get_rid()]
+	query.collide_with_bodies = true
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return
+
+	var prop := hit["collider"] as Prop
+	if prop == null or not prop.carryable:
+		return
+
+	_carried = prop
+	prop.carried_by = self
+	# The prop rides right in front of the face; without an exception it would
+	# grind against the capsule and shove the player around.
+	add_collision_exception_with(prop)
+	_stowed_slot = _slot
+	for weapon in weapons:
+		weapon.equipped = false
+
+
+## Puts the carried prop down where it is, restoring its gravity, its collision
+## with the player and the weapon that was holstered to pick it up.
+func drop_prop() -> void:
+	if _carried == null:
+		return
+	var prop := _carried
+	_carried = null
+	prop.carried_by = null
+	remove_collision_exception_with(prop)
+	equip(_stowed_slot)
+
+
+## Throws the carried prop along the view direction. The impulse is scaled by
+## the prop's mass so throw_speed really is the launch speed whatever it weighs.
+func throw_prop() -> void:
+	if _carried == null:
+		return
+	var prop := _carried
+	var direction := -camera.global_basis.z
+	drop_prop()
+	# Inherit the player's own motion, so running throws go further.
+	prop.linear_velocity = velocity
+	prop.apply_impulse(direction * throw_speed * prop.mass)
+
+
+## Steers the held prop toward a point in front of the camera by setting its
+## velocity, rather than teleporting it. Driving it through the physics engine
+## is what keeps a carried table from being pushed through walls -- it still
+## collides with everything on the way.
+func _update_carry(delta: float) -> void:
+	if _carried == null:
+		return
+	if not is_instance_valid(_carried):
+		_carried = null
+		return
+
+	var forward := -camera.global_basis.z
+	# Pull the hold point in short of any wall ahead, so held props press
+	# against geometry instead of trying to occupy it.
+	var reach := carry_distance
+	var query := PhysicsRayQueryParameters3D.create(
+		camera.global_position, camera.global_position + forward * carry_distance
+	)
+	query.exclude = [get_rid(), _carried.get_rid()]
+	var wall := get_world_3d().direct_space_state.intersect_ray(query)
+	if not wall.is_empty():
+		reach = maxf(camera.global_position.distance_to(wall["position"]) - 0.2, 0.5)
+
+	var offset := (camera.global_position + forward * reach) - _carried.global_position
+	if offset.length() > carry_break_distance:
+		# Wedged behind something the spring can't pull it through -- let go
+		# rather than dragging it through the level.
+		drop_prop()
+		return
+
+	_carried.linear_velocity = (offset * carry_stiffness).limit_length(carry_max_speed)
+	# Bleed off spin so a prop grabbed by one corner settles down while held.
+	_carried.angular_velocity *= pow(_carried.carry_spin_damping, delta)
 
 
 ## Crouch handling: while the crouch action is held the capsule + camera duck

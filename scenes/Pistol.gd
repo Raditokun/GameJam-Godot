@@ -11,6 +11,11 @@ extends Node3D
 @export var ray: RayCast3D
 ## Minimum seconds between shots.
 @export var fire_cooldown := 0.15
+## Damage handed to a target's take_damage() per shot.
+@export var damage := 15.0
+## Impulse in newton-seconds a bullet delivers to a physics prop. Small on
+## purpose -- shots should rock a table, not launch it.
+@export var impact_force := 12.0
 
 @export_group("Tracer")
 ## Seconds the tracer stays up while it fades out.
@@ -101,7 +106,20 @@ func _fire() -> void:
 		if ray.is_colliding()
 		else ray.to_global(ray.target_position)
 	)
+	if ray.is_colliding():
+		_apply_impact(ray.get_collider(), hit_point)
 	_spawn_tracer(muzzle.global_position, hit_point)
+
+
+## Hands damage and a bullet's worth of momentum to whatever was hit. Both are
+## routed through has_method() so shooting plain level geometry stays a no-op.
+func _apply_impact(collider: Object, point: Vector3) -> void:
+	if collider == null:
+		return
+	if collider.has_method("take_damage"):
+		collider.take_damage(damage)
+	if collider.has_method("apply_hit"):
+		collider.apply_hit(point, -ray.global_basis.z, impact_force)
 
 
 ## Builds a thick unshaded beam spanning from -> to, fades its alpha out and

@@ -1,0 +1,46 @@
+[gd_scene format=3 uid="uid://q76bkuwagkxg"]
+
+[ext_resource type="PackedScene" uid="uid://2yhegfb764mg" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/fbx/kitchentable_A_large.fbx" id="1_vt0ej"]
+[ext_resource type="Script" uid="uid://1pvbxgnj0jg" path="res://scenes/Prop.gd" id="2_prop"]
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_table"]
+friction = 0.6
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_top"]
+size = Vector3(3, 0.2, 2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_leg"]
+size = Vector3(0.19, 0.8, 0.19)
+
+[node name="meja" type="RigidBody3D" unique_id=224474689]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.609088, 0, 0)
+mass = 25.0
+physics_material_override = SubResource("PhysicsMaterial_table")
+continuous_cd = true
+linear_damp_mode = 1
+linear_damp = 0.2
+angular_damp_mode = 1
+angular_damp = 1.0
+script = ExtResource("2_prop")
+
+[node name="Tabletop" type="CollisionShape3D" parent="." unique_id=1749136732]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("BoxShape3D_top")
+
+[node name="LegFrontLeft" type="CollisionShape3D" parent="." unique_id=1536712691]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.35, 0.4, 0.85)
+shape = SubResource("BoxShape3D_leg")
+
+[node name="LegFrontRight" type="CollisionShape3D" parent="." unique_id=1263944330]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.35, 0.4, 0.85)
+shape = SubResource("BoxShape3D_leg")
+
+[node name="LegBackLeft" type="CollisionShape3D" parent="." unique_id=714362104]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.35, 0.4, -0.85)
+shape = SubResource("BoxShape3D_leg")
+
+[node name="LegBackRight" type="CollisionShape3D" parent="." unique_id=2035406189]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.35, 0.4, -0.85)
+shape = SubResource("BoxShape3D_leg")
+
+[node name="kitchentable_A_large" parent="." unique_id=617841332 instance=ExtResource("1_vt0ej")]

@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://basr2i4j8uofl"
+path="res://.godot/imported/playerstand_blue.obj-d85dcef594b0dc5aea4a282d6b458e4c.mesh"
+
+[deps]
+
+files=["res://.godot/imported/playerstand_blue.obj-d85dcef594b0dc5aea4a282d6b458e4c.mesh"]
+
+source_file="res://3DModels/KayKit_BoardGameBits_1.0_FREE/KayKit_BoardGameBits_1.0_FREE/Assets/obj/playerstand_blue.obj"
+dest_files=["res://.godot/imported/playerstand_blue.obj-d85dcef594b0dc5aea4a282d6b458e4c.mesh", "res://.godot/imported/playerstand_blue.obj-d85dcef594b0dc5aea4a282d6b458e4c.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

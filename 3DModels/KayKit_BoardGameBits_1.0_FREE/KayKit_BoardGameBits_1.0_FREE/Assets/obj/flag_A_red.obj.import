@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://fyko3y1m5ll3"
+path="res://.godot/imported/flag_A_red.obj-f63a924e54f236e56c1adf20408c42ab.mesh"
+
+[deps]
+
+files=["res://.godot/imported/flag_A_red.obj-f63a924e54f236e56c1adf20408c42ab.mesh"]
+
+source_file="res://3DModels/KayKit_BoardGameBits_1.0_FREE/KayKit_BoardGameBits_1.0_FREE/Assets/obj/flag_A_red.obj"
+dest_files=["res://.godot/imported/flag_A_red.obj-f63a924e54f236e56c1adf20408c42ab.mesh", "res://.godot/imported/flag_A_red.obj-f63a924e54f236e56c1adf20408c42ab.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

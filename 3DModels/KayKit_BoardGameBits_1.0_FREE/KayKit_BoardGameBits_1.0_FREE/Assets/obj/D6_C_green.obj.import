@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://b1ligpmjbd3j"
+path="res://.godot/imported/D6_C_green.obj-6409c4ad8bc646a79b92263ca8cbcf34.mesh"
+
+[deps]
+
+files=["res://.godot/imported/D6_C_green.obj-6409c4ad8bc646a79b92263ca8cbcf34.mesh"]
+
+source_file="res://3DModels/KayKit_BoardGameBits_1.0_FREE/KayKit_BoardGameBits_1.0_FREE/Assets/obj/D6_C_green.obj"
+dest_files=["res://.godot/imported/D6_C_green.obj-6409c4ad8bc646a79b92263ca8cbcf34.mesh", "res://.godot/imported/D6_C_green.obj-6409c4ad8bc646a79b92263ca8cbcf34.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

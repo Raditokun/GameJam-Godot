@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/Pistol.tscn" id="3_pistol"]
 [ext_resource type="Script" uid="uid://b27tw8meflmor" path="res://scenes/Crosshair.gd" id="4_crosshair"]
 [ext_resource type="PackedScene" path="res://scenes/SettingsMenu.tscn" id="5_settings"]
+[ext_resource type="Script" path="res://scenes/BuildMode.gd" id="6_build"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.4
@@ -49,6 +50,9 @@ ammo_label = NodePath("../../../HUD/AmmoLabel")
 transform = Transform3D(0.04230263, -0.021259945, -1.5042552, -0.18338543, 1.4935545, -0.02626587, 1.4931864, 0.18403296, 0.039390378, 0.395, -0.555, -0.55)
 ray = NodePath("../RayCast3D")
 
+[node name="BuildMode" type="Node3D" parent="." unique_id=1099238411]
+script = ExtResource("6_build")
+
 [node name="jump" type="AudioStreamPlayer3D" parent="." unique_id=76217393]
 stream = ExtResource("2_v6fml")
 volume_db = -25.421
@@ -87,6 +91,25 @@ theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 6
 theme_override_font_sizes/font_size = 30
 horizontal_alignment = 2
+vertical_alignment = 2
+
+[node name="PhaseLabel" type="Label" parent="HUD" unique_id=1206633475]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -400.0
+offset_top = -88.0
+offset_right = 400.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_color = Color(1, 0.92, 0.75, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 22
+horizontal_alignment = 1
 vertical_alignment = 2
 
 [node name="Crosshair" type="Control" parent="HUD" unique_id=1440249042]

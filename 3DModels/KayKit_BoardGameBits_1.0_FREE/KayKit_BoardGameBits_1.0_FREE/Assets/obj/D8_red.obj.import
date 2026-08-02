@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://l5r5hu5yqglh"
+path="res://.godot/imported/D8_red.obj-d1e945aaaa06c1ad24138b5f1f90cfd7.mesh"
+
+[deps]
+
+files=["res://.godot/imported/D8_red.obj-d1e945aaaa06c1ad24138b5f1f90cfd7.mesh"]
+
+source_file="res://3DModels/KayKit_BoardGameBits_1.0_FREE/KayKit_BoardGameBits_1.0_FREE/Assets/obj/D8_red.obj"
+dest_files=["res://.godot/imported/D8_red.obj-d1e945aaaa06c1ad24138b5f1f90cfd7.mesh", "res://.godot/imported/D8_red.obj-d1e945aaaa06c1ad24138b5f1f90cfd7.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false
