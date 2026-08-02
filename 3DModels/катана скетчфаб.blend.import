@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://bl7dqlvevpnyg"
-path="res://.godot/imported/катана скетчфаб.blend-1fcfa5fd6eaaba1887afcda8ecdcccb1.scn"
+valid=false
 
 [deps]
 
 source_file="res://3DModels/катана скетчфаб.blend"
-dest_files=["res://.godot/imported/катана скетчфаб.blend-1fcfa5fd6eaaba1887afcda8ecdcccb1.scn"]
 
 [params]
 
