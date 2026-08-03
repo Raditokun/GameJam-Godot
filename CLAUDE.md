@@ -223,11 +223,29 @@ contents change every frame and most of them are off-radar at any moment.
   `WaveSpawner`), `prop_group` ("draggable"), `player_group` ("player") — so
   runtime-spawned enemies appear with no wiring. Enemy dots are skipped when
   `is_queued_for_deletion()`, or a just-cleared wave keeps painting for a frame.
-- **Prop footprints are measured once and cached** by instance id.
-  `shape.get_debug_mesh()` rebuilds geometry, and there are ~500 draggables, so
-  measuring inside `_draw()` would cost more than the rest of the HUD together.
-  Only the transform is re-read per frame, which is what a dragged prop changes.
-  Falls back to visual bounds, then to a 2 × 2 m block.
+- **Redraw is throttled to `REDRAW_INTERVAL` (0.05 s / 20 Hz)**, not queued every
+  frame. A redraw walks the whole `draggable` group, and `get_nodes_in_group()`
+  allocates a fresh Array of all 522 props on every call. Measured 0.25 ms per
+  redraw on the live bench, so 60 Hz was spending ~15 ms of CPU per second on a
+  160 px widget; 20 Hz is a third of that and no staleness is visible at this
+  world scale.
+- **Prop footprints are measured once and cached** by instance id. Only the
+  transform is re-read, which is what a dragged prop changes. Falls back to
+  visual bounds, then to a 2 × 2 m block.
+- **`_shape_bounds()` reads shape parameters directly — never
+  `get_debug_mesh()`.** That call builds an entire debug MESH just to read a
+  shape's extents. It was tolerable when each prop had one hull; after the
+  multi-convex rebuild (§2e) props carry up to 8, so the first frame a prop
+  entered radar range paid for up to 8 mesh builds. Measured over all 522 props:
+  **103 ms → 5.1 ms, a 20× speedup**, with the footprints agreeing to a worst
+  relative difference of 0.0001. Because the cache fills lazily as props come
+  into range, that cold cost used to arrive as intermittent hitches all through a
+  round, not just at load — which is what made the radar feel like an FPS drop.
+  Box, ConvexPolygon, Sphere, Cylinder and Capsule are all handled; anything else
+  returns a zero AABB and falls through to the visual bounds.
+- Only **7 of 522** props sit inside the 30 m radar radius on the current bench,
+  so the per-frame drawing is trivial — the cost was always the full-group scan
+  and the cold measurement, which is what the two fixes above target.
 - `mouse_filter = 2` (IGNORE) in the scene. Load-bearing: the radar sits over the
   top-left corner of the screen, and a Control that accepts input there would
   swallow clicks meant for the PREPARATION drag tool.
@@ -966,6 +984,13 @@ undone, verification that was or was not run. Omit the line if there is nothing.
   here, because Jolt handles scaled colliders badly), every hull point must be
   transformed into the body's space or the collider comes out at 1/scale — a
   collider far too small, silently, with no error.
+- **`Shape3D.get_debug_mesh()` builds a whole mesh just to answer a question
+  about extents.** It is the convenient way to size any shape type, and it is
+  fine once — but it is not a getter, and calling it per shape per prop costs
+  real milliseconds. Measured across the bench's 522 props: 103 ms via
+  `get_debug_mesh().get_aabb()` against 5.1 ms reading `size` / `points` /
+  `radius` directly, for answers identical to 4 decimal places. Anything that
+  measures shapes in bulk should read the parameters.
 - **`NavigationObstacle3D.avoidance_enabled` is on by default and is not free.**
   Every enabled obstacle joins the RVO simulation each frame whether or not any
   agent is near it. At 500 obstacles that measured 34.8 ms/frame against a

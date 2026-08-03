@@ -55,14 +55,29 @@ const SELF_MARKER_SIZE := 7.0
 ## Fallback footprint, in metres, for a prop with no measurable geometry.
 const DEFAULT_PROP_SIZE := Vector2(2.0, 2.0)
 
+## Seconds between redraws. 0.05 = 20 Hz.
+const REDRAW_INTERVAL := 0.05
+
 var _player: Node3D = null
 ## Prop footprint half-extents, keyed by instance id. See _measure_prop() for why
 ## this is cached rather than measured per frame.
 var _extent_cache: Dictionary = {}
+## Seconds accumulated toward the next redraw. See REDRAW_INTERVAL.
+var _redraw_timer := 0.0
 
 
-func _process(_delta: float) -> void:
-	queue_redraw()
+func _process(delta: float) -> void:
+	# Throttled rather than redrawn every frame. A redraw walks the whole
+	# `draggable` group -- 521 props on the current bench, and
+	# get_nodes_in_group() allocates a fresh Array of all of them every call --
+	# so at 60 fps the radar was doing that work 60 times a second for a 160 px
+	# widget. At 20 Hz it is a third of the cost and still reads as live: the
+	# player moves slowly enough at this scale that 50 ms of staleness is not
+	# visible on a disc this size.
+	_redraw_timer += delta
+	if _redraw_timer >= REDRAW_INTERVAL:
+		_redraw_timer = 0.0
+		queue_redraw()
 
 
 func _draw() -> void:
@@ -240,12 +255,53 @@ func _shape_footprint(prop: Node3D) -> Vector2:
 		var shape_node := child as CollisionShape3D
 		if shape_node == null or shape_node.shape == null:
 			continue
-		# get_debug_mesh() covers every shape type; reaching for a per-type
-		# `size` or `radius` would miss the convex hulls the props actually use.
-		var box: AABB = shape_node.transform * shape_node.shape.get_debug_mesh().get_aabb()
-		bounds = bounds.merge(box) if found else box
+		var box := _shape_bounds(shape_node.shape)
+		if box.size == Vector3.ZERO:
+			continue
+		var placed: AABB = shape_node.transform * box
+		bounds = bounds.merge(placed) if found else placed
 		found = true
 	return Vector2(bounds.size.x, bounds.size.z) if found else Vector2.ZERO
+
+
+## Local-space bounds of a collision shape, measured from its parameters.
+##
+## Deliberately NOT `shape.get_debug_mesh().get_aabb()`, which is what this used
+## to do. That call builds a whole debug MESH for the shape just to read its
+## extents -- and since the multi-convex rebuild, props carry up to 8 hulls each
+## rather than one, so the first frame a prop came into radar range paid for up
+## to 8 mesh builds. Reading the parameters directly is the same answer for a
+## fraction of the work.
+##
+## Returns a zero-size AABB for a shape type not handled here; the caller skips
+## those and falls through to the visual bounds.
+func _shape_bounds(shape: Shape3D) -> AABB:
+	if shape is BoxShape3D:
+		var s := (shape as BoxShape3D).size
+		return AABB(-s * 0.5, s)
+	if shape is ConvexPolygonShape3D:
+		var points := (shape as ConvexPolygonShape3D).points
+		if points.is_empty():
+			return AABB()
+		var box := AABB(points[0], Vector3.ZERO)
+		for p in points:
+			box = box.expand(p)
+		return box
+	# The remaining primitives are one-liners, and covering them keeps the
+	# always-dynamic bowl (a CylinderShape3D) measured off its real collider
+	# instead of silently falling through to its visual bounds.
+	if shape is SphereShape3D:
+		var r := (shape as SphereShape3D).radius
+		return AABB(Vector3.ONE * -r, Vector3.ONE * r * 2.0)
+	if shape is CylinderShape3D:
+		var cylinder := shape as CylinderShape3D
+		var cr := cylinder.radius
+		return AABB(Vector3(-cr, -cylinder.height * 0.5, -cr), Vector3(cr * 2.0, cylinder.height, cr * 2.0))
+	if shape is CapsuleShape3D:
+		var capsule := shape as CapsuleShape3D
+		var pr := capsule.radius
+		return AABB(Vector3(-pr, -capsule.height * 0.5, -pr), Vector3(pr * 2.0, capsule.height, pr * 2.0))
+	return AABB()
 
 
 ## Fallback footprint from rendered geometry, for anything tagged draggable that

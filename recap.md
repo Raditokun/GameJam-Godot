@@ -6,6 +6,63 @@ the top.** Append-only; see `CLAUDE.md` §4 for the format and the rules.
 `CLAUDE.md` describes the project as it is now. This file records how it got
 there — including the dead ends.
 
+## 2026-08-03 22:44 — Minimap performance: throttled redraw + fast shape bounds
+
+**Changed:**
+- `scenes/Minimap.gd` — new `_redraw_timer` and `REDRAW_INTERVAL` const (0.05 s /
+  20 Hz); `_process()` throttles `queue_redraw()` instead of calling it every
+  frame. `_shape_footprint()` now calls a new `_shape_bounds()` that reads shape
+  parameters directly instead of `shape.get_debug_mesh().get_aabb()`.
+- `CLAUDE.md` — Minimap section documents both optimisations with the measured
+  numbers; new §5 gotcha about `get_debug_mesh()` not being a getter.
+
+**Notes:**
+
+**One task item was already done.** Early distance filtering in `_draw_props()`
+was already implemented exactly as specified when the Minimap was written at
+20:44 — the `dx*dx + dz*dz > range_squared` check already sat above `_to_radar()`,
+`_prop_extents()` and `draw_colored_polygon()`. No change was needed; leaving this
+note so nobody goes looking for a diff that does not exist.
+
+**What was actually causing the drops.** Measured on the live bench, and the
+steady-state cost turned out not to be the problem: only **7 of 522** props are
+inside the 30 m radar radius, and a warm-cache scan costs 0.25 ms per redraw.
+That is 1.5% of a 16.7 ms frame — real, worth removing, but not something you
+would notice.
+
+The actual culprit was the **cold** footprint measurement.
+`shape.get_debug_mesh()` builds an entire debug mesh just to read extents, and
+the multi-convex rebuild at 22:31 had just taken props from 1 hull each to up to
+8 — so the first frame a prop entered radar range paid for up to 8 mesh builds.
+Because the cache fills lazily as the player moves, that cost arrived as
+intermittent hitches all through a round rather than once at load, which is
+exactly what "FPS drops" describes. So this change is partly cleaning up after
+22:31, which made the pre-existing weakness much worse.
+
+**Measured, over all 522 props on the real bench:**
+
+| | old (`get_debug_mesh`) | new (parameter read) |
+|---|---|---|
+| cold pass over every prop | 103.0 ms | **5.1 ms** (20.1× faster) |
+
+Correctness checked, not assumed: the two implementations were run side by side
+over all 522 props and agreed to a worst relative difference of **0.0001**, with
+zero mismatches above 2%.
+
+Steady-state scan: 0.252 ms per redraw → at 60 Hz that was ~15.1 ms of CPU per
+second, now ~5.0 ms at 20 Hz.
+
+Added beyond the spec: the spec's `_shape_bounds` handled Box and ConvexPolygon
+and `continue`d on everything else. I also handled Sphere, Cylinder and Capsule —
+they are one-liners, and without them the always-dynamic `bowl_dirty2` (a
+CylinderShape3D) would silently fall through to being sized by its visual mesh
+instead of its collider.
+
+**Not verified in play.** No windowed run — `_draw()` does not execute headless,
+so the on-screen result of the 20 Hz throttle (whether the radar reads as smooth
+while the player turns) is unchecked. If it looks steppy while turning, lower
+`REDRAW_INTERVAL`; the expensive part is fixed independently of the rate.
+
 ## 2026-08-03 22:31 — Multi-convex prop colliders (V-HACD) + full scene rebuild
 
 **Changed:**
