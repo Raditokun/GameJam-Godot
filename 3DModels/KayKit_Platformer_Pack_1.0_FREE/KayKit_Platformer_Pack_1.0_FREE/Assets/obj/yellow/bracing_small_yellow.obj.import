@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://v03l4qbqyghm"
+path="res://.godot/imported/bracing_small_yellow.obj-d0bb44d18a459fb281b307ab4c3f2eda.mesh"
+
+[deps]
+
+files=["res://.godot/imported/bracing_small_yellow.obj-d0bb44d18a459fb281b307ab4c3f2eda.mesh"]
+
+source_file="res://3DModels/KayKit_Platformer_Pack_1.0_FREE/KayKit_Platformer_Pack_1.0_FREE/Assets/obj/yellow/bracing_small_yellow.obj"
+dest_files=["res://.godot/imported/bracing_small_yellow.obj-d0bb44d18a459fb281b307ab4c3f2eda.mesh", "res://.godot/imported/bracing_small_yellow.obj-d0bb44d18a459fb281b307ab4c3f2eda.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

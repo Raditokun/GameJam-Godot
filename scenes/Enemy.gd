@@ -29,6 +29,11 @@ enum State {
 	CHASE,
 }
 
+## Separation below which the direction to the player stops being meaningful --
+## normalising a near-zero vector makes the enemy spin on the spot. At this range
+## it is already in contact anyway.
+const MIN_CHARGE_OFFSET := 0.2
+
 @export_group("Movement")
 ## Ground speed in units per second. The bench is ~220 units end to end.
 @export var move_speed := 8.0
@@ -86,6 +91,20 @@ enum State {
 ## Seconds between target updates while chasing. Re-pathing every frame to a
 ## moving target is wasted work; a short interval still tracks convincingly.
 @export var chase_repath_interval := 0.2
+## How close the agent must get to the player before navigation reports arrival,
+## while chasing. It has to be small enough to let the capsule actually reach
+## them -- the agent stops dead the moment it is inside this radius, so anything
+## body-sized parks the enemy just out of contact range.
+@export var chase_arrive_distance := 0.5
+## The same tolerance while patrolling. Deliberately looser than the chase value:
+## a waypoint is a place to head for, not a thing to touch, and demanding
+## pinpoint arrival makes the enemy jitter on the spot fine-tuning its position.
+@export var patrol_arrive_distance := 2.0
+## Range, in metres, inside which a chasing enemy with line of sight abandons the
+## navmesh path and drives straight at the player. The path is built to the
+## nearest walkable point, which is not where the player is standing, so the last
+## couple of metres have to be closed off-path or contact never happens.
+@export var direct_charge_distance := 3.0
 ## Seconds between goal re-reads while patrolling, so a moved marker is picked up.
 @export var repath_interval := 0.4
 
@@ -106,6 +125,12 @@ var state: State = State.PATROL
 var _player: Node3D = null
 var _since_repath := 0.0
 var _seen_for := 0.0
+## Whether the sightline was clear on THIS physics frame, cached by _update_aggro.
+## The close-range charge check needs the same answer later in the frame, and
+## has_line_of_sight() fires a forced raycast on every call -- at up to 120 live
+## enemies, casting twice per frame for an answer already computed is a cost the
+## frame budget does not have.
+var _sees_player := false
 ## The patrol circuit, rebuilt from `goal_group` as it is walked so a waypoint
 ## that gets moved is picked up.
 var _route: Array[Vector3] = []
@@ -176,6 +201,24 @@ func _physics_process(delta: float) -> void:
 			if to_next.length() > 0.001:
 				desired = to_next.normalized() * _current_speed()
 
+	# Closing the last stretch off-path. A navmesh route ends at the nearest
+	# walkable point to the target, and the player is rarely standing on one --
+	# they are on the tabletop, up against clutter, inside a carve outline. A
+	# chaser that only ever follows the path therefore runs out of path a couple
+	# of metres short, zeroes its velocity and stands there, which reads as the
+	# enemy losing interest at exactly the moment it should be dangerous. Once it
+	# has run out of path, or is close with a clear sightline, drive straight at
+	# them instead so the charge actually lands.
+	if state == State.CHASE and _player != null and is_instance_valid(_player):
+		var to_player := _player.global_position - global_position
+		to_player.y = 0.0
+		var closing := (
+			agent.is_navigation_finished()
+			or (to_player.length() < direct_charge_distance and _sees_player)
+		)
+		if closing and to_player.length() > MIN_CHARGE_OFFSET:
+			desired = to_player.normalized() * _current_speed()
+
 	if agent.avoidance_enabled:
 		# Hand the wish to the avoidance simulation; it answers on
 		# velocity_computed with a version that dodges its neighbours.
@@ -239,6 +282,7 @@ func has_line_of_sight() -> bool:
 ## the chase once aggro_memory has run out.
 func _update_aggro(delta: float) -> void:
 	var visible_now := has_line_of_sight()
+	_sees_player = visible_now
 	if visible_now:
 		_seen_for = aggro_memory
 	else:
@@ -249,10 +293,24 @@ func _update_aggro(delta: float) -> void:
 		return
 
 	state = State.CHASE if should_chase else State.PATROL
+	_apply_arrive_tuning()
 	# Force an immediate re-path so the switch is visible on the next frame
 	# rather than up to repath_interval later.
 	_since_repath = 999.0
 	aggro_changed.emit(state == State.CHASE)
+
+
+## Keeps the agent's arrival tolerance in step with the state. Applied on every
+## state change rather than left at the scene's authored value, because the two
+## states want opposite things from it: a chaser has to be allowed all the way in
+## to make contact, while a patroller wants slack so it does not fidget on a
+## waypoint. Also re-applied on phase changes, which set the state directly.
+func _apply_arrive_tuning() -> void:
+	if agent == null:
+		return
+	agent.target_desired_distance = (
+		chase_arrive_distance if state == State.CHASE else patrol_arrive_distance
+	)
 
 
 ## Points the navigation agent at whatever the current state is after.
@@ -363,6 +421,7 @@ func _apply_phase(new_phase: int) -> void:
 	if is_action_phase:
 		_build_route()
 		agent.target_position = _current_waypoint()
+		_apply_arrive_tuning()
 		_waypoint_time = 0.0
 		_stuck_time = 0.0
 		return
@@ -370,7 +429,9 @@ func _apply_phase(new_phase: int) -> void:
 	if state == State.CHASE:
 		aggro_changed.emit(false)
 	state = State.PATROL
+	_apply_arrive_tuning()
 	_seen_for = 0.0
+	_sees_player = false
 	_since_repath = 999.0
 	_route_index = 0
 	_waypoint_time = 0.0

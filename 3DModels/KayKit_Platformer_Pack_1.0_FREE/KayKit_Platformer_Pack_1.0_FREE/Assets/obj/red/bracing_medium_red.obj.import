@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://d08t2q8tdm2px"
+path="res://.godot/imported/bracing_medium_red.obj-02e0ff1ddc1a6fbe6a408a4d7aaec4bc.mesh"
+
+[deps]
+
+files=["res://.godot/imported/bracing_medium_red.obj-02e0ff1ddc1a6fbe6a408a4d7aaec4bc.mesh"]
+
+source_file="res://3DModels/KayKit_Platformer_Pack_1.0_FREE/KayKit_Platformer_Pack_1.0_FREE/Assets/obj/red/bracing_medium_red.obj"
+dest_files=["res://.godot/imported/bracing_medium_red.obj-02e0ff1ddc1a6fbe6a408a4d7aaec4bc.mesh", "res://.godot/imported/bracing_medium_red.obj-02e0ff1ddc1a6fbe6a408a4d7aaec4bc.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

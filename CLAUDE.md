@@ -290,7 +290,14 @@ dragged and the mesh has not caught up.
   contributes an obstacle without contributing walkable floor.
 
 **`scenes/Enemy.tscn` / `Enemy.gd`** — `CharacterBody3D` capsule (r 0.4, h 1.8,
-red) with a `NavigationAgent3D` (avoidance on, agent radius 1.2).
+red) with a `NavigationAgent3D` (avoidance on, agent radius 0.5).
+- **The agent radius tracks the capsule, not the clutter.** It was 1.2 against a
+  0.4 capsule, which inflated every enemy's RVO footprint to three times its real
+  size and made the swarm refuse gaps between props it physically fits through.
+  0.5 keeps a hair of margin over 0.4 without inventing collisions.
+- `target_desired_distance` is **driven from the script per state**, not left at
+  the authored value — see `_apply_arrive_tuning()` and the arrival gotcha in §5.
+  Scene default 0.5; `path_desired_distance` 0.8.
 - **Patrols a looping circuit** — every Node3D in the `enemy_goal` group is a
   stop, walked in tree order, wrapping at the end so it never runs out of
   somewhere to be. With a single marker the enemy's own spawn point is added as
@@ -354,10 +361,39 @@ player every `chase_repath_interval` (0.2 s), moving at `chase_speed_scale`
 (1.25×). Losing sight does not drop it instantly — `aggro_memory` (2 s) keeps
 the chase alive, without which the state flickers every time the player clips an
 obstacle edge. Emits `aggro_changed(chasing)`; `is_chasing()` reports state.
-- Tunables: `move_speed` (25), `chase_speed_scale`, `turn_speed`, `gravity`,
-  `goal_group`, `goal_position`, `arrive_distance`, `waypoint_timeout`,
-  `repath_interval` (0.4), `player_group`, `aggro_range`, `eye_height`,
-  `target_height`, `aggro_memory`, `chase_repath_interval`.
+
+**Closing the last few metres.** A navmesh path ends at the nearest *walkable*
+point to the target, and the player is almost never standing on one — they are up
+against clutter, inside a carve outline, on the tilted bench. A chaser that only
+follows the path therefore runs out of path short of the player, zeroes its
+velocity and stands there, reading as the enemy losing interest at the exact
+moment it should be dangerous. Two things fix it, and both are needed:
+- `_apply_arrive_tuning()` sets `agent.target_desired_distance` from the state —
+  `chase_arrive_distance` (0.5) while chasing, `patrol_arrive_distance` (2.0)
+  while patrolling. Called on every aggro flip **and** from `_apply_phase()`,
+  which sets the state directly without going through `_update_aggro()`.
+- `_physics_process()` then overrides the path-following velocity with a direct
+  horizontal vector at the player when the agent reports navigation finished, or
+  when it is within `direct_charge_distance` (3.0) *and* has line of sight.
+  Skipped inside `MIN_CHARGE_OFFSET` (0.2), where normalising the offset just
+  makes the enemy spin.
+
+The sightline for that check reads `_sees_player`, cached by `_update_aggro()`
+earlier in the same frame, **not** a second `has_line_of_sight()` call — that
+method forces a raycast on every call, and at `max_live_enemies` (120) a second
+cast per enemy per frame is real budget.
+- Tunables: `move_speed` (8.0), `chase_speed_scale` (1.35), `turn_speed`,
+  `gravity`, `goal_group`, `goal_position`, `arrive_distance`,
+  `waypoint_timeout`, `repath_interval` (0.4), `player_group`, `aggro_range`,
+  `eye_height`, `target_height`, `aggro_memory`, `chase_repath_interval`,
+  `chase_arrive_distance`, `patrol_arrive_distance`, `direct_charge_distance`.
+
+**Known issue, not yet fixed:** `_ready()` sets `agent.max_speed = move_speed`,
+but a chasing enemy asks for `move_speed * chase_speed_scale`. With avoidance on
+the RVO simulation clamps the returned velocity to `max_speed`, so the chase
+speed boost is silently discarded and a charging enemy moves at patrol pace.
+`agent.max_speed = move_speed * chase_speed_scale` fixes it, at the cost of
+making enemies faster — a feel change, so it is left as a decision.
 
 Measured (navigation): 169 units of bench, clear run arrives in 370 frames dead
 straight (0.0 lateral stray); with the bowl parked mid-path it arrives in 386
@@ -689,7 +725,37 @@ build tool, in ACTION they drive the weapons.
 **Whenever a new core feature, scene, weapon, or key binding is added or
 modified, automatically update this `CLAUDE.md` file with concise notes before
 considering the task complete.** Keep entries factual and current — prefer
-editing the relevant section above over appending a changelog.
+editing the relevant section above over appending a changelog. `CLAUDE.md`
+describes the project as it is **now**; the history of how it got there lives in
+`recap.md` (below).
+
+**Whenever you change any file in this project, append an entry to `recap.md` in
+the repo root before considering the task complete.** It is the handoff log that
+other agents and sessions read to find out what moved since they last looked, so
+it must be written even for small changes and even when `CLAUDE.md` did not need
+updating.
+
+- **Newest entry goes at the TOP**, directly under the file's heading, so a
+  reader sees the latest state first without scrolling.
+- Timestamp every entry `YYYY-MM-DD HH:MM` in **local time**. Get it from the
+  system (`Get-Date -Format "yyyy-MM-dd HH:mm"`) — never estimate it, and never
+  reuse the timestamp of an earlier entry.
+- One entry per task, not per file edit. Entry format:
+
+```markdown
+## YYYY-MM-DD HH:MM — <short title of the task>
+
+**Changed:**
+- `path/to/file.gd` — what changed and why, in one line.
+
+**Notes:** anything the next agent needs: new tunables, things deliberately left
+undone, verification that was or was not run. Omit the line if there is nothing.
+```
+
+- Record what was actually done, including work that failed or was reverted.
+  A recap that only lists successes is worse than no recap — the next agent will
+  redo the dead end.
+- Never rewrite or delete existing entries; the log is append-only.
 
 ## 5. Known Gotchas (learned the hard way — see project memory for more)
 
@@ -778,6 +844,23 @@ editing the relevant section above over appending a changelog.
   closest reachable point, so it reports finished while still far away. Anything
   that treats it as arrival will silently skip work; anything that waits for
   arrival will hang until its timeout.
+- **`target_desired_distance` is a hard stop, not a tolerance.** The agent
+  reports `is_navigation_finished()` the instant it is within that radius, so any
+  body-sized value makes a chaser park exactly that far from the player and never
+  touch them — it looks like the enemy losing its nerve, not like a tuning
+  number. It was 2.5 here, i.e. enemies halted 2.5 m out. A pursuer needs it
+  small (0.5) and a patroller wants it loose, so drive it from the state rather
+  than authoring one value in the scene. Note this cuts velocity to zero *before*
+  contact, which is why the final approach has to be driven off-path.
+- **`NavigationAgent3D.radius` is the RVO footprint and is independent of the
+  collision shape.** Setting it larger than the body — 1.2 against a 0.4 capsule
+  here — makes avoidance treat each agent as three times its real width, so a
+  swarm refuses gaps its members physically fit through and jams in corridors
+  that look wide open. Keep it just over the capsule radius.
+- **`NavigationAgent3D.max_speed` clamps the velocity avoidance hands back.** A
+  speed multiplier applied to the desired velocity (a chase boost, say) is
+  silently thrown away if the product exceeds `max_speed`, so the enemy moves at
+  the clamp with no error and the multiplier looks like it does nothing.
 - **`SOURCE_GEOMETRY_GROUPS_EXPLICIT` does not visit children.** A navmesh bake
   in explicit mode parses only the exact nodes in the group, so an obstacle or
   collider parented under a grouped node is silently skipped. Use
