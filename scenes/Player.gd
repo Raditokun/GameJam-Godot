@@ -146,6 +146,12 @@ var _stowed_slot := 0
 # Pose the player is returned to when a round resets.
 var _spawn_transform := Transform3D.IDENTITY
 
+## Height below which the player has fallen off the bench and dies. The tabletop
+## is at y ~= 73.6 and the kitchen floor is at y = 0, so there is a wide dead band
+## between "standing on the bench" and "falling". Matches the threshold
+## PrepCamera and Enemy use to despawn fallen props and enemies.
+const FALL_DEATH_Y := 65.0
+
 ## True from the moment an enemy reaches the player until they retry. Gates
 ## movement and every input except the two retry keys.
 var is_dead := false
@@ -286,6 +292,13 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# Off the bench. Checked before the death branch so the fall registers on the
+	# frame it happens rather than a frame later, and gated on `not is_dead` so a
+	# corpse that keeps sinking cannot re-trigger. die() is idempotent anyway, but
+	# this keeps the intent readable.
+	if not is_dead and global_position.y < FALL_DEATH_Y:
+		die()
+
 	if is_dead:
 		# Frozen in place, but still driven: gravity and move_and_slide keep the
 		# body settled on the bench instead of hanging wherever it was standing.

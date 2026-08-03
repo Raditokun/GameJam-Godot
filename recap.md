@@ -6,6 +6,75 @@ the top.** Append-only; see `CLAUDE.md` §4 for the format and the rules.
 `CLAUDE.md` describes the project as it is now. This file records how it got
 there — including the dead ends.
 
+## 2026-08-04 00:05 — Kitchen room instanced into Main, fall-off-bench death
+
+**Changed:**
+- `scenes/Main.tscn` — new ext_resource for `res://kitchen.tscn` (id
+  `2_kitchen`); new `Kitchen` instance at `(50.5054, 0, -4.5812955)`, uniform
+  scale 74.76889; instance override hiding `Kitchen/KitchentableBLarge`.
+- `scenes/Player.gd` — new `FALL_DEATH_Y` (65.0); `_physics_process` calls
+  `die()` when the player drops below it, checked before the `is_dead` branch.
+- `CLAUDE.md` — §2 documents the Kitchen instance (scale reasoning, the hidden
+  duplicate table, the BulkPropSetup hazard); Death & Retry gains the fall
+  trigger.
+
+**Notes:**
+
+**Scale is the whole trick here, and it is 74.76889 — the same factor `meja`
+carries.** The player is a miniature on a 74.8×-scaled table, so a 1:1 kitchen
+around it would read as a dollhouse rather than a room. At matching scale the
+walls sit ±389 units out around a bench of roughly 112-unit half-extent, which is
+the right proportion (a ~10 m room around a 3 m table).
+
+Used a clean axis-aligned scale rather than copying `meja`'s exact basis. `meja`
+carries a slight tilt (the documented ~0.15-unit drift across the bench); the
+room should be level even if the table is not.
+
+**Two measurement traps hit while placing it, both caught by probing rather than
+by eyeballing the numbers:**
+1. **`CSGBox3D.size` defaults to 1.0, not 2.0.** I first placed the Kitchen at
+   y = −7.477 on the assumption of a 2-unit box, which buried the room 7.5 units
+   into the ground. Probing the real `size.y` showed 1.0, and the floor CSG's top
+   face is already at local y = 0 (centre −0.1, scale 0.2, half-height 0.1), so
+   the correct `y` is simply **0** — which also lands it exactly on the top of
+   the existing `Floor` slab.
+2. My first probe read `kfloor.scale.y` and got the node's **local** 0.2 rather
+   than the 14.95 the Kitchen's scale actually gives it. Local scale says nothing
+   about world position under a scaled parent; use `global_basis.get_scale()`.
+
+**One thing I did beyond the task: `Kitchen/KitchentableBLarge` is hidden** via an
+instance override. `kitchen.tscn` ships its own `kitchentable_B_large` at the
+origin, and `meja` — a `kitchentable_A_large` — is already the workbench standing
+in exactly that spot. Without the override two different tables intersect at the
+centre of the play area. Different models, so this is not z-fighting but two
+visibly overlapping tables. One line to revert (`visible = false` on that node) if
+you would rather reposition the room instead.
+
+**A hazard worth knowing:** `Kitchen` is a plain Node3D full of meshes, so
+`PropConverter._skip_reason()` treats it as a conversion candidate. Re-running
+`tools/BulkPropSetup.gd` would wrap the entire room in a RigidBody3D full of
+hulls. Add `Kitchen` to `PropConverter.SKIP_NAMES` before ever doing that — I did
+not, since that file was not in scope. (`rebuild_prop_colliders.gd` is safe; it
+only touches bodies already in the `draggable` group.)
+
+The kitchen is purely decorative: its CSG floor/ceiling have `use_collision` off
+and the KayKit gltf instances carry no colliders, so it adds nothing to physics,
+the navmesh, or the group scans.
+
+**Verification:** headless probe (since deleted) on the live scene. Kitchen is
+centred on `meja` in XZ to within 0.01 and matches its scale; the room's ±389
+half-extent encloses the bench; the floor's top face computes to **y = 0.00**
+against the world ground plane; the instance override took effect on the right
+child (`KitchentableBLarge` hidden, `Wall` and `KitchenExteriorFurniture` both
+still visible — this is what would have caught a wrong `index=` in the override).
+Fall death: alive at the spawn y of 73.06, **not** dead at y = 66 (just above the
+threshold), dead with the retry label up at y = 40.
+
+**Not verified in play.** No windowed run, so how the room actually looks from
+the bench — whether the walls read as a kitchen or as distant grey slabs at this
+scale, and whether the hidden table leaves an obvious gap — is unchecked. This is
+the change in this session most likely to need visual tuning.
+
 ## 2026-08-03 23:28 — Main menu is now the startup scene, buttons wired
 
 **Changed:**
