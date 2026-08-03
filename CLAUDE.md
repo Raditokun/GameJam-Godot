@@ -516,8 +516,25 @@ PropName (RigidBody3D)   groups: draggable, navmesh_source, scale 1
     so a dragged prop still carves its true footprint.
   `tools/refit_carve_outlines.gd` repairs outlines already saved in `Main.tscn`
   (run it after changing the outline shape; `--check` dry-runs). It edits the
-  scene as **text**, rewriting only the `radius`/`vertices` lines, so unique_ids
-  and instance overrides survive untouched.
+  scene as **text**, rewriting only the `transform`/`radius`/`height`/`vertices`
+  lines, so unique_ids and instance overrides survive untouched.
+
+  The tool now does two things. It **untilts** each obstacle (local basis =
+  `body.global_basis.inverse()`), because NavigationObstacle3D only supports Y
+  rotation — that cleared all 522 editor warnings. With the frame square to the
+  world it writes the outline as the **2D convex hull of every collision point
+  projected onto world XZ**, which is tighter than any AABB and correct for a
+  prop at any angle. Falls back to the hull's bounding rectangle past
+  `MAX_HULL_POINTS` (10) so bake cost stays bounded.
+
+  **Measured consequence, worth knowing:** with outlines finally accurate, the
+  props' true footprints total ~33,600 sq units on a 29,256 sq unit bench. The
+  walkable navmesh is therefore fragmented into **27 disconnected regions** (largest
+  75 sampled cells spanning x 50..150, next 60, then a tail of pockets). Wave-spawned
+  enemies patrol normally — measured 4 of 5 moving, mean 17.2 units in 6 s — but
+  there is no route across the whole bench, and no navigation setting changes that
+  (`agent_radius` 1.5 → 0.4 gives an identical 11/252). It is a level-content limit:
+  522 props is more clutter than the table has room for.
 
 - Candidates are chosen **by type, not name** — anything already a
   `CollisionObject3D`, or a `CSGShape3D` / `Camera3D` / `Light3D` / `Marker3D` /
@@ -727,6 +744,13 @@ editing the relevant section above over appending a changelog.
   empty `vertices` outline, the bake completes cleanly and produces a mesh with
   no hole in it — no error, no warning, and the agent happily paths straight
   through the obstacle.
+- **`NavigationObstacle3D` only supports rotation around Y, and it inherits its
+  parent's basis.** Every prop on the bench sits at some angle, so all 522 obstacles
+  raised a configuration warning — even a 0.3° tilt trips it, and one prop was at 175°.
+  Worse than the warning: the outline is then measured in a tilted frame, so a prop lying
+  on its side carved its *height* instead of its width. Give the obstacle a local basis of
+  `parent.global_basis.inverse()` so its global basis is identity, then write the outline
+  in world axes.
 - **A navmesh carve outline that is not the prop's real footprint is an invisible
   wall.** Sizing the outline off a single radius (`max(x, z) * 0.5`) turns every
   long thin prop into a disc of unwalkable floor many units wider than the thing

@@ -153,16 +153,28 @@ func _physics_process(delta: float) -> void:
 		_drive(Vector3.ZERO, delta)
 		return
 
+	# Nothing below here is safe until the navigation map can answer queries. Asking
+	# early does not return a poor answer, it raises an error -- and an error inside
+	# _physics_process aborts the rest of the function, so the enemy would never reach
+	# its move call and would stand still looking like it had crashed.
+	if not _navigation_ready():
+		_drive(Vector3.ZERO, delta)
+		return
+
 	_update_aggro(delta)
 	_advance_patrol(delta)
 	_update_target(delta)
 
 	var desired := Vector3.ZERO
 	if not agent.is_navigation_finished():
-		var to_next := agent.get_next_path_position() - global_position
-		to_next.y = 0.0
-		if to_next.length() > 0.001:
-			desired = to_next.normalized() * _current_speed()
+		var next_point := agent.get_next_path_position()
+		# An agent with no usable path can hand back a non-finite point; normalising
+		# that produces NaN velocity and the body leaves the map for good.
+		if next_point.is_finite():
+			var to_next := next_point - global_position
+			to_next.y = 0.0
+			if to_next.length() > 0.001:
+				desired = to_next.normalized() * _current_speed()
 
 	if agent.avoidance_enabled:
 		# Hand the wish to the avoidance simulation; it answers on
@@ -172,8 +184,21 @@ func _physics_process(delta: float) -> void:
 		_drive(desired, delta)
 
 
-## True once the enemy has reached its current target.
+## True once the navigation map exists and has completed a synchronisation, so path
+## queries are legal. The iteration id is the only reliable signal -- a map can report
+## itself valid a frame or two before it can actually answer.
+func _navigation_ready() -> bool:
+	if agent == null:
+		return false
+	var map := agent.get_navigation_map()
+	return map.is_valid() and NavigationServer3D.map_get_iteration_id(map) > 0
+
+
+## True once the enemy has reached its current target. Safe to call at any time: an
+## unsynchronised map reports "not finished" rather than erroring.
 func has_arrived() -> bool:
+	if not _navigation_ready():
+		return false
 	return agent.is_navigation_finished()
 
 

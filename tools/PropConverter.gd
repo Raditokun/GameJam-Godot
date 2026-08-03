@@ -133,6 +133,12 @@ func convert_prop(prop: Node3D, owner_root: Node) -> RigidBody3D:
 	obstacle.name = "NavigationObstacle3D"
 	body.add_child(obstacle)
 	obstacle.owner = owner_root
+	# NavigationObstacle3D only supports rotation around Y. An obstacle inherits its
+	# body's basis, and bench props sit at every angle, so cancel the body's rotation
+	# here -- otherwise the node warns and its outline is projected from a tilted frame.
+	# Run tools/refit_carve_outlines.gd afterwards to fit the outline to the world
+	# footprint; this only guarantees the frame the outline is measured in.
+	obstacle.transform = Transform3D(body.global_basis.inverse(), Vector3.ZERO)
 
 	var material := PhysicsMaterial.new()
 	material.friction = FRICTION
