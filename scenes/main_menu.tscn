@@ -88,7 +88,6 @@ grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxTexture_slfkp")
 
 [node name="MainButtons" type="VBoxContainer" parent="." unique_id=1968281671]
-visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -181,16 +180,17 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Setting" type="Panel" parent="." unique_id=788231111]
+visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -407.0
-offset_top = -113.0
-offset_right = 407.0
-offset_bottom = 303.0
+offset_left = -329.5
+offset_top = -112.0
+offset_right = 329.5
+offset_bottom = 304.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -229,9 +229,9 @@ text = "Exit Setting"
 
 [node name="Music Slider" type="HSlider" parent="Setting" unique_id=2068108358]
 layout_mode = 0
-offset_left = 431.0
+offset_left = 272.0
 offset_top = 66.0
-offset_right = 682.0
+offset_right = 523.0
 offset_bottom = 82.0
 theme_override_styles/slider = SubResource("StyleBoxLine_wn6ll")
 theme_override_styles/grabber_area = SubResource("StyleBoxLine_fnc6c")
@@ -244,10 +244,10 @@ audio_bus_name = "Music"
 
 [node name="SFX Slider" type="HSlider" parent="Setting" unique_id=1949505045]
 layout_mode = 0
-offset_left = 431.0
-offset_top = 106.0
-offset_right = 682.0
-offset_bottom = 122.0
+offset_left = 273.0
+offset_top = 105.0
+offset_right = 524.0
+offset_bottom = 121.0
 theme_override_styles/slider = SubResource("StyleBoxLine_wn6ll")
 theme_override_styles/grabber_area = SubResource("StyleBoxLine_fnc6c")
 theme_override_styles/grabber_area_highlight = SubResource("StyleBoxLine_fnc6c")
@@ -257,10 +257,10 @@ value = 30.0
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_left = -115.0
-offset_top = 53.0
-offset_right = -115.0
-offset_bottom = 94.0
+offset_left = -191.0
+offset_top = 55.0
+offset_right = -191.0
+offset_bottom = 96.0
 grow_horizontal = 2
 theme_override_colors/font_color = Color(0.99406976, 0.9587644, 0.6891002, 1)
 theme_override_colors/font_shadow_color = Color(0.8438663, 0.34120426, 0, 0.07058824)
@@ -275,9 +275,9 @@ horizontal_alignment = 1
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_left = -125.0
+offset_left = -204.0
 offset_top = 93.0
-offset_right = -125.0
+offset_right = -204.0
 offset_bottom = 134.0
 grow_horizontal = 2
 theme_override_colors/font_color = Color(0.99406976, 0.9587644, 0.6891002, 1)
@@ -296,10 +296,10 @@ bus = &"Music"
 
 [node name="FullscreenControl" type="CheckButton" parent="Setting" unique_id=443882868]
 layout_mode = 0
-offset_left = 219.0
-offset_top = 123.0
-offset_right = 690.0
-offset_bottom = 174.0
+offset_left = 66.0
+offset_top = 122.0
+offset_right = 525.0
+offset_bottom = 173.0
 theme_override_colors/font_color = Color(0.9764706, 0.9411765, 0.6784314, 1)
 theme_override_fonts/font = ExtResource("3_wu84c")
 theme_override_font_sizes/font_size = 35

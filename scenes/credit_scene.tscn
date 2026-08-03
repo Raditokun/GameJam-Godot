@@ -1,0 +1,63 @@
+[gd_scene format=3 uid="uid://bb0qfxx8mbp6"]
+
+[ext_resource type="Script" uid="uid://ujwmx1iqnyq8" path="res://scenes/credit_text.gd" id="1_3pbma"]
+[ext_resource type="FontFile" uid="uid://buymujb17ux3s" path="res://Fonts/Dimbo Regular.ttf" id="1_cyc8d"]
+
+[node name="CreditScene" type="Control" unique_id=2125012763]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=395056553]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 1)
+
+[node name="CreditText" type="RichTextLabel" parent="." unique_id=1505409960]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_bottom = 273.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/default_color = Color(0.9963643, 0.7952883, 0.5399255, 1)
+theme_override_fonts/normal_font = ExtResource("1_cyc8d")
+theme_override_font_sizes/normal_font_size = 26
+text = "
+
+Developer Team
+Lead Project Officer  -  Muhammad Raditya Imansyah
+3D Specialist  -  Mohamad Kemal Bintang Ramadhan
+UI/UX Designer  -  Kevin Afkar Haya
+
+Assets
+KayKit Block Bits
+KayKit Board Games Bits
+KayKit City Builder Bits
+KayKit Dungeon Pack
+KayKit  Fantasy Weapon Bits
+KayKit Holliday Bits 1.0
+KayKit Platformer Pack 1.0
+KayKit Resource Bits 1.0
+KayKit Restaurant Bits 1.0
+KayKit RPG Tools Bits 1.0
+KayKit Skeletons 1.1
+KayKit Space Base Bits 1.0
+
+Music
+Ditto remix by @sol_invictus
+
+#AYOJOINMAGE
+#AYOJOINMAGE
+#AYOJOINMAGE
+@mage_its"
+horizontal_alignment = 1
+script = ExtResource("1_3pbma")
