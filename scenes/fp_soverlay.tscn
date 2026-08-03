@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://djdqev7bjtekp"]
+
+[ext_resource type="FontFile" uid="uid://buymujb17ux3s" path="res://Fonts/Dimbo Regular.ttf" id="1_7r51v"]
+[ext_resource type="Script" uid="uid://c74l3umw1epoq" path="res://scenes/fp_soverlay.gd" id="1_xpjdg"]
+
+[node name="FPSOverlay" type="CanvasLayer" unique_id=1019446432]
+script = ExtResource("1_xpjdg")
+
+[node name="Label" type="Label" parent="." unique_id=784161651]
+offset_left = 1095.0
+offset_top = 8.0
+offset_right = 1146.0
+offset_bottom = 69.0
+theme_override_colors/font_color = Color(0.92890245, 0, 0.25589913, 1)
+theme_override_fonts/font = ExtResource("1_7r51v")
+theme_override_font_sizes/font_size = 50

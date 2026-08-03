@@ -23,6 +23,7 @@ buses/default_bus_layout="uid://vjp4auad2raf"
 
 GameSettings="*res://scenes/GameSettings.gd"
 GameState="*res://scenes/GameState.gd"
+FPSOverlay="*uid://djdqev7bjtekp"
 
 [display]
 
