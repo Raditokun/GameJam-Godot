@@ -1,21 +1,40 @@
 extends Node3D
-## Low-poly placeholder pistol: hitscan firing with fading white tracers, plus a
-## manual reload that dips the weapon and blocks shooting while it plays.
+## Slot 1 -- the Stasis Cannon. One slow, heavy hitscan shot on a 25-second
+## cooldown that does not kill what it hits: it SLOWS it.
 ##
-## Ammo is infinite while `infinite_ammo` is on -- the counters render but never
-## drop, and reload is purely the animation and the fire lockout it imposes.
-## Turning that flag off switches on real consumption with no other changes.
+## The cooldown is the design, not a balance knob. At 25 seconds the shot is a
+## resource rather than a weapon -- it cannot be used to fight a swarm, only to
+## buy time against the one enemy about to reach the player, or to hold a choke
+## point open long enough to get through it. Fire it at the wrong moment and
+## there is nothing to fall back on for the next 25 seconds, which is what makes
+## the maze the actual answer to the swarm and the cannon only the escape hatch.
+##
+## The slow is delivered by duck-typing: anything with an `apply_slow(factor,
+## duration)` method takes it. Nothing is hard-wired to the enemy type, so a
+## future boss or destructible can opt in by growing the method.
 
 @export_group("Shooting")
 ## The camera-mounted ray used for hitscan. Points at Camera3D/RayCast3D.
 @export var ray: RayCast3D
-## Minimum seconds between shots.
-@export var fire_cooldown := 0.15
-## Damage handed to a target's take_damage() per shot.
+## Seconds before the cannon can fire again. The whole point of the weapon.
+@export var cooldown_time := 25.0
+## Damage handed to a target's take_damage() per shot. Nothing on the bench has
+## a health system yet, so this is currently inert on enemies.
 @export var damage := 15.0
-## Impulse in newton-seconds a bullet delivers to a physics prop. Small on
+## Impulse in newton-seconds a shot delivers to a physics prop. Small on
 ## purpose -- shots should rock a table, not launch it.
 @export var impact_force := 12.0
+
+@export_group("Stasis")
+## Speed multiplier applied to whatever is hit: 0.4 leaves 40% of its speed.
+@export var slow_factor := 0.4
+## Seconds the slow lasts on the target.
+@export var slow_duration := 5.0
+
+@export_group("HUD")
+## Bottom-right charge meter. Points at the player's HUD/GunBar. Fills from
+## empty back to full as the cannon recharges.
+@export var cooldown_bar: ProgressBar
 
 @export_group("Tracer")
 ## Seconds the tracer stays up while it fades out.
@@ -28,76 +47,60 @@ extends Node3D
 ## Draw the beam over geometry so walls and the weapon can never hide it.
 @export var tracer_draw_on_top := true
 
-@export_group("Ammo")
-## Bullets per magazine, as shown in the HUD.
-@export var magazine_size := 15
-## Magazines carried.
-@export var magazine_count := 7
-## While true the counters never decrease.
-@export var infinite_ammo := true
-## Bottom-right ammo readout. Points at the player's HUD/AmmoLabel.
-@export var ammo_label: Label
-
-@export_group("Reload")
-## Total seconds the reload takes; shooting is blocked for the whole duration.
-@export var reload_time := 1.0
-## How far the weapon dips down during the reload, in metres.
-@export var reload_dip := 0.15
-## How far the weapon tilts down during the reload, in degrees.
-@export var reload_tilt_deg := 25.0
-
 @onready var muzzle: Marker3D = $Muzzle
 
 ## True while this weapon is the one in the player's hands. Holstered weapons
-## hide themselves, ignore fire/reload input, and take their ammo readout with
-## them -- a pistol magazine count means nothing while the sword is out.
+## hide themselves, ignore fire input, and take their charge meter with them --
+## a cannon cooldown means nothing while the sword is out.
 var equipped := true:
 	set(value):
 		equipped = value
 		visible = value
-		if ammo_label != null:
-			ammo_label.visible = value
+		if cooldown_bar != null:
+			cooldown_bar.visible = value
 
-var _cooldown := 0.0
-var _reloading := false
-var _rest_position := Vector3.ZERO
-var _rest_rotation := Vector3.ZERO
-var _bullets := 0
-var _mags := 0
+## Seconds left before the cannon can fire again. Zero means charged.
+var _cooldown_timer := 0.0
 
 
 func _ready() -> void:
-	# Remember the authored pose so the reload animation can return to it.
-	_rest_position = position
-	_rest_rotation = rotation
-	_bullets = magazine_size
-	_mags = magazine_count
-	_update_ammo_label()
+	if cooldown_bar == null:
+		return
+	# Set the range here rather than trusting the scene: the fill maths below
+	# reports a percentage, and a bar left on some other range would show a
+	# charge state that has nothing to do with the real cooldown.
+	cooldown_bar.min_value = 0.0
+	cooldown_bar.max_value = 100.0
+	cooldown_bar.value = 100.0
+	cooldown_bar.visible = equipped
 
 
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	# Ticks whether or not the weapon is equipped: the cannon recharges in the
+	# holster, so switching to the sword is not a way to dodge the cooldown.
+	_cooldown_timer = maxf(_cooldown_timer - delta, 0.0)
+
+	if cooldown_bar == null:
+		return
+	cooldown_bar.visible = equipped
+	# 0 right after firing, 100 when charged -- a meter filling back up, which
+	# reads as "ready?" far better than a countdown draining away.
+	cooldown_bar.value = (1.0 - (_cooldown_timer / maxf(cooldown_time, 0.001))) * 100.0
+
+
+func _unhandled_input(event: InputEvent) -> void:
 	if not equipped:
 		return
-	_cooldown = maxf(_cooldown - delta, 0.0)
-
-	if Input.is_action_just_pressed("reload"):
-		_reload()
-	if Input.is_action_just_pressed("fire"):
+	if event.is_action_pressed("fire") and _cooldown_timer == 0.0:
 		_fire()
 
 
 ## Hitscan shot: resolves what the camera ray hits and draws a tracer from the
 ## muzzle to that point, or to the ray's full length when nothing is hit.
 func _fire() -> void:
-	if _reloading or _cooldown > 0.0 or ray == null:
+	if ray == null:
 		return
-	if not infinite_ammo and _bullets <= 0:
-		return
-	_cooldown = fire_cooldown
-
-	if not infinite_ammo:
-		_bullets -= 1
-		_update_ammo_label()
+	_cooldown_timer = cooldown_time
 
 	# Resolve the ray right now rather than trusting the last physics tick.
 	ray.force_raycast_update()
@@ -111,11 +114,14 @@ func _fire() -> void:
 	_spawn_tracer(muzzle.global_position, hit_point)
 
 
-## Hands damage and a bullet's worth of momentum to whatever was hit. Both are
-## routed through has_method() so shooting plain level geometry stays a no-op.
+## Hands the slow, damage and a shot's worth of momentum to whatever was hit.
+## All three are routed through has_method() so shooting plain level geometry
+## stays a no-op, and so nothing here depends on the enemy's concrete type.
 func _apply_impact(collider: Object, point: Vector3) -> void:
 	if collider == null:
 		return
+	if collider.has_method("apply_slow"):
+		collider.apply_slow(slow_factor, slow_duration)
 	if collider.has_method("take_damage"):
 		collider.take_damage(damage)
 	if collider.has_method("apply_hit"):
@@ -157,40 +163,3 @@ func _spawn_tracer(from: Vector3, to: Vector3) -> void:
 	var tween := tracer.create_tween()
 	tween.tween_property(material, "albedo_color:a", 0.0, tracer_lifetime)
 	tween.tween_callback(tracer.queue_free)
-
-
-## Dips the weapon down and brings it back over reload_time, blocking fire for
-## the duration.
-func _reload() -> void:
-	if _reloading:
-		return
-	_reloading = true
-
-	var dip_time := reload_time * 0.35
-	var hold_time := reload_time - dip_time * 2.0
-	var down_position := _rest_position + Vector3(0.0, -reload_dip, 0.0)
-	var down_rotation := _rest_rotation + Vector3(deg_to_rad(-reload_tilt_deg), 0.0, 0.0)
-
-	var tween := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tween.tween_property(self, "position", down_position, dip_time)
-	tween.parallel().tween_property(self, "rotation", down_rotation, dip_time)
-	tween.tween_interval(hold_time)
-	tween.tween_property(self, "position", _rest_position, dip_time)
-	tween.parallel().tween_property(self, "rotation", _rest_rotation, dip_time)
-	tween.tween_callback(_on_reload_finished)
-
-
-func _on_reload_finished() -> void:
-	_reloading = false
-	if not infinite_ammo:
-		_mags = maxi(_mags - 1, 0)
-		_bullets = magazine_size
-		_update_ammo_label()
-
-
-## Refreshes the bottom-right readout: bullets in the current magazine over the
-## magazine size, then how many magazines are carried.
-func _update_ammo_label() -> void:
-	if ammo_label == null:
-		return
-	ammo_label.text = "%d / %d\nMAGS %d" % [_bullets, magazine_size, _mags]

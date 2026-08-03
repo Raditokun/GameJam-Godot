@@ -6,6 +6,10 @@
 [ext_resource type="Script" uid="uid://b27tw8meflmor" path="res://scenes/Crosshair.gd" id="4_crosshair"]
 [ext_resource type="PackedScene" path="res://scenes/SettingsMenu.tscn" id="5_settings"]
 [ext_resource type="Script" uid="uid://dmh6pglfaqp03" path="res://scenes/BuildMode.gd" id="6_build"]
+[ext_resource type="Script" path="res://scenes/Minimap.gd" id="7_minimap"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gunbar_fill"]
+bg_color = Color(0.2, 0.65, 1, 1)
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.4
@@ -39,11 +43,11 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
 [node name="RayCast3D" type="RayCast3D" parent="Head/Camera3D" unique_id=634501365]
 target_position = Vector3(0, 0, -100)
 
-[node name="Pistol" parent="Head/Camera3D" unique_id=295870913 node_paths=PackedStringArray("ray", "ammo_label") instance=ExtResource("3_pistol")]
+[node name="Pistol" parent="Head/Camera3D" unique_id=295870913 node_paths=PackedStringArray("ray", "cooldown_bar") instance=ExtResource("3_pistol")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, -0.2, -0.45)
 visible = false
 ray = NodePath("../RayCast3D")
-ammo_label = NodePath("../../../HUD/AmmoLabel")
+cooldown_bar = NodePath("../../../HUD/GunBar")
 
 [node name="BuildMode" type="Node3D" parent="." unique_id=1099238411]
 script = ExtResource("6_build")
@@ -70,25 +74,22 @@ theme_override_constants/outline_size = 4
 theme_override_font_sizes/font_size = 16
 vertical_alignment = 2
 
-[node name="AmmoLabel" type="Label" parent="HUD" unique_id=493971292]
+[node name="GunBar" type="ProgressBar" parent="HUD" unique_id=493971292]
 visible = false
 anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -280.0
-offset_top = -104.0
-offset_right = -24.0
-offset_bottom = -16.0
+offset_left = -220.0
+offset_top = -50.0
+offset_right = -20.0
+offset_bottom = -20.0
 grow_horizontal = 0
 grow_vertical = 0
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 6
-theme_override_font_sizes/font_size = 30
-horizontal_alignment = 2
-vertical_alignment = 2
+theme_override_styles/fill = SubResource("StyleBoxFlat_gunbar_fill")
+value = 100.0
+show_percentage = false
 
 [node name="PhaseLabel" type="Label" parent="HUD" unique_id=1206633475]
 visible = false
@@ -123,5 +124,14 @@ stroke_length = 5.0
 thickness = 1.0
 center_dot = false
 color = Color(0.7621213, 0.8401127, 1, 0.9019608)
+
+[node name="Minimap" type="Control" parent="HUD"]
+layout_mode = 3
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 180.0
+offset_bottom = 180.0
+mouse_filter = 2
+script = ExtResource("7_minimap")
 
 [node name="SettingsMenu" parent="." unique_id=669604588 instance=ExtResource("5_settings")]

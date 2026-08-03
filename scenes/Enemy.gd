@@ -34,6 +34,17 @@ enum State {
 ## it is already in contact anyway.
 const MIN_CHARGE_OFFSET := 0.2
 
+## How hard a feeler hit steers the enemy sideways, as a fraction of its speed.
+## The deflection is added to the desired direction and renormalised, so this is
+## a blend weight, not an absolute: 0.75 bends the path around a corner without
+## ever overpowering the direction the agent actually wants to go.
+const CORNER_SLIDE_STRENGTH := 0.75
+## Seconds of going nowhere before unstuck recovery throws a lateral dodge.
+const UNSTICK_STUCK_TIME := 0.6
+## Minimum seconds between dodges. See _unstick() for why this exists instead of
+## zeroing _stuck_time.
+const UNSTICK_COOLDOWN := 0.4
+
 @export_group("Movement")
 ## Ground speed in units per second. The bench is ~220 units end to end.
 @export var move_speed := 8.0
@@ -43,6 +54,13 @@ const MIN_CHARGE_OFFSET := 0.2
 ## How quickly the body swings around to face where it is going, in 1/seconds.
 @export var turn_speed := 5.0
 @export var gravity := 20.0
+
+@export_group("Debuffs")
+## Speed multiplier a stasis hit leaves behind: 0.4 means 40% of normal speed.
+## Used when a caller does not pass one of its own.
+@export var default_slow_factor := 0.4
+## Seconds a stasis hit lasts, when the caller does not pass its own.
+@export var default_slow_duration := 5.0
 
 @export_group("Patrol")
 ## Group holding the waypoints this enemy walks. Every Node3D in the group
@@ -77,8 +95,9 @@ const MIN_CHARGE_OFFSET := 0.2
 @export var player_group := "player"
 ## Fallback aggro range in metres, used only if DetectionArea has no sphere to
 ## read. Normally the range comes from that shape, so the radius you can see in
-## the editor is the one the logic actually uses.
-@export var aggro_range := 45.0
+## the editor is the one the logic actually uses -- _ready() overwrites this with
+## the sphere's 250.0, which is bench-wide (the table is ~220 units end to end).
+@export var aggro_range := 250.0
 ## Height above the enemy's feet the sight ray fires from, in metres.
 @export var eye_height := 1.5
 ## Height above the player's feet the sight ray aims at. Aiming at the chest
@@ -100,17 +119,18 @@ const MIN_CHARGE_OFFSET := 0.2
 ## a waypoint is a place to head for, not a thing to touch, and demanding
 ## pinpoint arrival makes the enemy jitter on the spot fine-tuning its position.
 @export var patrol_arrive_distance := 2.0
-## Range, in metres, inside which a chasing enemy with line of sight abandons the
-## navmesh path and drives straight at the player. The path is built to the
-## nearest walkable point, which is not where the player is standing, so the last
-## couple of metres have to be closed off-path or contact never happens.
-@export var direct_charge_distance := 3.0
 ## Seconds between goal re-reads while patrolling, so a moved marker is picked up.
 @export var repath_interval := 0.4
 
 @onready var agent: NavigationAgent3D = $NavigationAgent3D
 @onready var detection_area: Area3D = $DetectionArea
 @onready var sight_ray: RayCast3D = $SightRay
+## Angled whiskers at knee height. Between them they see the corner the agent is
+## about to clip before the capsule reaches it, which is what corner-slide assist
+## steers off. Fetched with get_node_or_null so an older Enemy scene without them
+## degrades to "no assist" rather than crashing on load.
+@onready var feeler_left: RayCast3D = get_node_or_null("FeelerLeft") as RayCast3D
+@onready var feeler_right: RayCast3D = get_node_or_null("FeelerRight") as RayCast3D
 
 ## True only while the match is actually running. Mirrors GameState (the global
 ## game manager) which owns the real phase; kept as a plain flag here so the
@@ -125,11 +145,10 @@ var state: State = State.PATROL
 var _player: Node3D = null
 var _since_repath := 0.0
 var _seen_for := 0.0
-## Whether the sightline was clear on THIS physics frame, cached by _update_aggro.
-## The close-range charge check needs the same answer later in the frame, and
-## has_line_of_sight() fires a forced raycast on every call -- at up to 120 live
-## enemies, casting twice per frame for an answer already computed is a cost the
-## frame budget does not have.
+## Whether the sightline was clear on THIS physics frame, cached by _update_aggro
+## so nothing else has to fire a second raycast to ask. Currently written but not
+## read: direct pursuit no longer gates on line of sight. Kept as the hook for a
+## HUD "they can see you" tell, which is the mechanic this state belongs to.
 var _sees_player := false
 ## The patrol circuit, rebuilt from `goal_group` as it is walked so a waypoint
 ## that gets moved is picked up.
@@ -139,6 +158,13 @@ var _route_index := 0
 var _waypoint_time := 0.0
 ## Seconds spent trying to move while going nowhere, against `stuck_timeout`.
 var _stuck_time := 0.0
+## Seconds of stasis left, and the speed multiplier it applies while it lasts.
+## Kept separate from the timer so the factor a shot delivered survives for
+## exactly its own duration rather than being blended with the last one.
+var _slow_timer := 0.0
+var _slow_factor := 1.0
+## Seconds left before unstuck recovery may throw another dodge.
+var _dodge_cooldown := 0.0
 var _spawn_transform := Transform3D.IDENTITY
 # move_and_slide() must run exactly once per physics frame. With avoidance on,
 # the move happens in the velocity_computed callback, and this guards against a
@@ -160,6 +186,12 @@ func _ready() -> void:
 			aggro_range = (shape.shape as SphereShape3D).radius
 			break
 	sight_ray.add_exception(self)
+	# The feelers start at knee height, inside the capsule's own radius -- without
+	# the exception they report the enemy's own body as the corner ahead and it
+	# steers in circles forever.
+	for feeler in [feeler_left, feeler_right]:
+		if feeler != null:
+			feeler.add_exception(self)
 	GameState.phase_changed.connect(_on_phase_changed)
 	# The navigation map is not built until the first physics sync, so asking
 	# for a path in _ready() returns nothing.
@@ -171,6 +203,7 @@ func _physics_process(delta: float) -> void:
 		velocity.y = 0.0
 	else:
 		velocity.y -= gravity * delta
+	_slow_timer = maxf(_slow_timer - delta, 0.0)
 
 	# Preparation: hold still and stay blind. Still driven (with zero velocity)
 	# so gravity settles it onto the bench.
@@ -201,23 +234,15 @@ func _physics_process(delta: float) -> void:
 			if to_next.length() > 0.001:
 				desired = to_next.normalized() * _current_speed()
 
-	# Closing the last stretch off-path. A navmesh route ends at the nearest
-	# walkable point to the target, and the player is rarely standing on one --
-	# they are on the tabletop, up against clutter, inside a carve outline. A
-	# chaser that only ever follows the path therefore runs out of path a couple
-	# of metres short, zeroes its velocity and stands there, which reads as the
-	# enemy losing interest at exactly the moment it should be dangerous. Once it
-	# has run out of path, or is close with a clear sightline, drive straight at
-	# them instead so the charge actually lands.
-	if state == State.CHASE and _player != null and is_instance_valid(_player):
-		var to_player := _player.global_position - global_position
-		to_player.y = 0.0
-		var closing := (
-			agent.is_navigation_finished()
-			or (to_player.length() < direct_charge_distance and _sees_player)
-		)
-		if closing and to_player.length() > MIN_CHARGE_OFFSET:
-			desired = to_player.normalized() * _current_speed()
+	# Direct pursuit. Overrides the path for effectively the whole chase -- see
+	# _line_of_sight_fallback() for why bypassing the navmesh is the fix for
+	# distant enemies freezing rather than a shortcut around pathfinding.
+	desired = _line_of_sight_fallback(desired)
+
+	# Corner-slide assist and unstuck recovery run last, so they steer whatever
+	# the enemy actually decided to do -- following the path or charging.
+	desired = _corner_slide(desired)
+	desired = _unstick(desired, delta)
 
 	if agent.avoidance_enabled:
 		# Hand the wish to the avoidance simulation; it answers on
@@ -225,6 +250,88 @@ func _physics_process(delta: float) -> void:
 		agent.velocity = desired
 	else:
 		_drive(desired, delta)
+
+
+## Drives straight at the player, off-path, for effectively the whole chase.
+##
+## This is not a "last few metres" tweak any more -- it fires whenever a chasing
+## enemy is further than `chase_arrive_distance` (0.5) from the player, which is
+## almost always. **During CHASE the navmesh is therefore bypassed entirely**, and
+## pathfinding only governs PATROL.
+##
+## That is deliberate, and it is the fix for enemies freezing at a distance. The
+## props' carve outlines fragment the bench into ~27 disconnected navmesh regions
+## (see §2e in CLAUDE.md), so for most of the table there is simply no route from
+## an enemy to the player: the agent gets a path to the nearest reachable point,
+## reports `is_navigation_finished()` while still far away, and stops. Charging
+## directly is the only thing that crosses a fragmented mesh. What keeps it from
+## walking face-first into the clutter is the steering that runs after this --
+## `_corner_slide()` reads the feelers, and `_unstick()` catches the rest.
+func _line_of_sight_fallback(desired: Vector3) -> Vector3:
+	if state != State.CHASE or _player == null or not is_instance_valid(_player):
+		return desired
+
+	var dir := _player.global_position - global_position
+	dir.y = 0.0
+	var distance := dir.length()
+	if not agent.is_navigation_finished() and distance <= chase_arrive_distance:
+		return desired
+	# Inside this the direction is numerically meaningless and normalising it just
+	# makes the enemy spin; it is already in contact anyway.
+	if distance <= MIN_CHARGE_OFFSET:
+		return desired
+	return dir.normalized() * _current_speed()
+
+
+## Steers around a corner the agent is about to clip.
+##
+## Navmesh paths cut corners, and RVO only knows about other agents, so the
+## capsule scrapes along prop edges it was routed past. The angled feelers see
+## the edge before the body reaches it and bend the desired direction away.
+func _corner_slide(desired: Vector3) -> Vector3:
+	if desired.length_squared() <= 0.01 or not is_on_floor():
+		return desired
+
+	var left_hit := feeler_left != null and feeler_left.is_colliding()
+	var right_hit := feeler_right != null and feeler_right.is_colliding()
+	# Exactly one side blocked is a corner to slide along. Both blocked is a dead
+	# end rather than a corner -- deflecting there only picks which wall to grind
+	# against, so leave that to unstuck recovery. Neither blocked needs nothing.
+	if left_hit == right_hit:
+		return desired
+
+	var speed := _current_speed()
+	var lateral := global_transform.basis.x * speed * CORNER_SLIDE_STRENGTH
+	# basis.x is the enemy's right, so a hit on the left pushes right and back.
+	var steered := (desired + lateral) if left_hit else (desired - lateral)
+	if steered.length() < 0.001:
+		return desired
+	return steered.normalized() * speed
+
+
+## Last resort: throw the enemy sideways when it has been asking to move and
+## going nowhere. Catches what the feelers cannot -- wedged between two props,
+## jammed against a neighbour, or standing on a path that leads into a solid.
+##
+## **Deliberately does not zero `_stuck_time`,** using its own cooldown instead.
+## `_advance_patrol()` gives up on a waypoint at `stuck_timeout` (1.5 s), and that
+## is the only thing that rescues a route which is valid on the navmesh but
+## impassable to the capsule. Resetting the shared counter every 0.6 s would cap
+## it below 1.5 s forever, silently killing that give-up and stranding the enemy
+## dodging in place at a waypoint it can never reach. Leaving the counter to keep
+## climbing means a dodge that works clears it naturally (via `_drive`), and one
+## that does not still escalates to abandoning the waypoint.
+func _unstick(desired: Vector3, delta: float) -> Vector3:
+	_dodge_cooldown = maxf(_dodge_cooldown - delta, 0.0)
+	if _stuck_time <= UNSTICK_STUCK_TIME or _dodge_cooldown > 0.0:
+		return desired
+
+	_dodge_cooldown = UNSTICK_COOLDOWN
+	# Whatever route it was on leads into the thing it is wedged against, so the
+	# same path would walk it straight back in. Force a fresh one.
+	_since_repath = 999.0
+	var side := 1.0 if randf() > 0.5 else -1.0
+	return global_transform.basis.x * side * _current_speed()
 
 
 ## True once the navigation map exists and has completed a synchronisation, so path
@@ -395,7 +502,33 @@ func _current_waypoint() -> Vector3:
 
 
 func _current_speed() -> float:
-	return move_speed * (chase_speed_scale if state == State.CHASE else 1.0)
+	var base := move_speed * (chase_speed_scale if state == State.CHASE else 1.0)
+	if _slow_timer > 0.0:
+		base *= _slow_factor
+	return base
+
+
+## Puts this enemy in stasis: `factor` of its normal speed for `duration`
+## seconds. Called by the Stasis Cannon through has_method(), so nothing on the
+## weapon side needs to know what an Enemy is.
+##
+## A fresh hit replaces the current stasis outright rather than stacking or
+## multiplying -- two cannon shots should not compound into a near-total freeze,
+## and the second shot re-arming the full duration is the behaviour a player
+## expects from re-applying a debuff.
+func apply_slow(factor: float = default_slow_factor, duration: float = default_slow_duration) -> void:
+	_slow_factor = factor
+	_slow_timer = duration
+
+
+## Whether stasis is currently in effect, and how much of it is left. Public for
+## a future HUD tell or a shader tint on the capsule.
+func is_slowed() -> bool:
+	return _slow_timer > 0.0
+
+
+func slow_remaining() -> float:
+	return _slow_timer
 
 
 func _on_body_entered(body: Node3D) -> void:
@@ -432,6 +565,7 @@ func _apply_phase(new_phase: int) -> void:
 	_apply_arrive_tuning()
 	_seen_for = 0.0
 	_sees_player = false
+	_dodge_cooldown = 0.0
 	_since_repath = 999.0
 	_route_index = 0
 	_waypoint_time = 0.0

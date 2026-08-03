@@ -6,6 +6,369 @@ the top.** Append-only; see `CLAUDE.md` §4 for the format and the rules.
 `CLAUDE.md` describes the project as it is now. This file records how it got
 there — including the dead ends.
 
+## 2026-08-03 21:51 — Bench-wide aggro (250 m) + chase now bypasses the navmesh
+
+**Changed:**
+- `scenes/Enemy.tscn` — `DetectionArea` SphereShape3D radius 45 → 250;
+  `SightRay.target_position` (0,0,−45) → (0,0,−250).
+- `scenes/Enemy.gd` — `aggro_range` export 45.0 → 250.0. `_ready()` unchanged: it
+  already adopts the radius off the DetectionArea sphere, so the editor value
+  stays the single source of truth and now yields 250 automatically (verified by
+  deliberately mis-setting the export to 1.0 and watching `_ready()` overwrite
+  it). `_line_of_sight_fallback()` rewritten to the new rule: chase directly when
+  `agent.is_navigation_finished()` **or** distance > `chase_arrive_distance`.
+- `CLAUDE.md` — §2d DetectionArea/SightRay/aggro_range updated; the "Closing the
+  last few metres" section replaced with "Chasing bypasses the navmesh entirely";
+  tunables list updated; old aggro measurements marked as taken at r 45 and new
+  ones added.
+
+**Notes:**
+
+**The big one: chase no longer uses pathfinding at all.** `chase_arrive_distance`
+is 0.5, so "distance > 0.5" is true for essentially the entire chase — the
+navmesh path is overridden every frame and the enemy beelines. Pathfinding now
+governs PATROL only.
+
+I want to be explicit that this is a real architectural change, not a tuning
+tweak, because it is easy to read the diff as small. It is nevertheless the right
+call **given the current level content**: §2e records that the props' carve
+outlines fragment the bench into ~27 disconnected navmesh regions with no route
+across it, so a chasing enemy usually cannot path to the player at all — it gets
+a path to the nearest reachable point, reports `is_navigation_finished()` far
+away, and stops. That IS the "distant patrol freezing" symptom. A beeline is the
+only thing that crosses a fragmented mesh, and the feelers/unstuck layers added
+at 21:40 are what stop it grinding into props. **If the fragmentation is ever
+fixed (fewer props, or tighter carve outlines), revisit this** — real pathfinding
+around the maze is better AI than a straight line.
+
+Second behaviour change: the spec's condition drops the line-of-sight gate that
+21:40 added, so during the `aggro_memory` (2 s) tail after the player breaks
+cover the enemy keeps charging their last known position. Bounded at 2 s, so it
+reads as momentum rather than wallhacking.
+
+`direct_charge_distance` (4.0) was **removed** — the new condition does not
+reference it, so it was left completely unread. Same treatment as `fire_cooldown`
+in the 21:15 entry: a dead export that appears to govern charging is worse than
+no export. Nothing overrode it in any .tscn. `_sees_player` is now written but
+not read; kept deliberately as the hook for a HUD "they can see you" tell, and
+its doc comment says so.
+
+**PERFORMANCE RISK — unmeasured, please profile before trusting.** r 250 makes
+every enemy's DetectionArea cover the whole bench, and its mask is 1, which is
+the layer the ~500 props sit on. At `max_live_enemies` 120 that is on the order
+of 60,000 area-overlap pairs for the broadphase to maintain, plus a 250-unit
+SightRay cast per enemy per frame instead of 45. §2e records the scene already
+sitting **exactly** on the 16.7 ms budget, so there may be no headroom for this.
+I could not measure it here — it needs a real wave on the real bench, not a
+headless two-node probe. If it does bite, the clean fix is to put the player on a
+dedicated collision layer and narrow the DetectionArea mask to only that, so the
+props stop being tested at all.
+
+**Verification:** headless probe (since deleted). Sphere radius 250, SightRay
+target (0,0,−250), `aggro_range` 250 both as export default and as adopted from
+the shape at `_ready()`; `direct_charge_distance` confirmed absent. Direct
+pursuit returns full speed (10.8, the chase speed) at 100 units and at 2 units,
+passes the input through unchanged inside `MIN_CHARGE_OFFSET`, and leaves PATROL
+input untouched. Line of sight at 200 units: true on a clear bench, false with a
+wall on the line — so range really has stopped being the gate and cover still is.
+
+**Not verified in play, and not profiled.** See the performance risk above; that
+is the main open question on this change.
+
+## 2026-08-03 21:40 — Enemy feelers, corner-slide assist, unstuck recovery
+
+**Changed:**
+- `scenes/Enemy.tscn` — new `FeelerLeft` and `FeelerRight` RayCast3Ds at knee
+  height (±0.3, 0.4, 0) splaying to (±0.8, 0, −1.0), mask 1, `enabled` left at
+  default true so they self-update each physics frame.
+- `scenes/Enemy.gd` — `feeler_left` / `feeler_right` via `get_node_or_null`;
+  three new consts (`CORNER_SLIDE_STRENGTH` 0.75, `UNSTICK_STUCK_TIME` 0.6,
+  `UNSTICK_COOLDOWN` 0.4); `_dodge_cooldown` var reset in `_apply_phase`.
+  The old inline direct-charge block became `_line_of_sight_fallback()`, plus new
+  `_corner_slide()` and `_unstick()`. `_physics_process` now pipes the desired
+  velocity through all three in that order. `direct_charge_distance` 3.0 → 4.0.
+- `CLAUDE.md` — §2d gains a "Corner-slide assist and unstuck recovery" section;
+  the "Closing the last few metres" bullet rewritten for the new LoS rule and the
+  4.0 range.
+
+**Notes:**
+
+**One deliberate deviation from the spec, and it matters.** The spec said
+`_unstick` should `reset _stuck_time = 0.0`. It does **not** — it uses its own
+`UNSTICK_COOLDOWN` (0.4 s) instead. Reason: `_stuck_time` is shared with
+`_advance_patrol()`, which abandons a waypoint at `stuck_timeout` (1.5 s). Zeroing
+it every 0.6 s caps it below 1.5 s *permanently*, so that give-up could never fire
+again — and it is the only thing that rescues a path which is valid on the navmesh
+but impassable to the capsule (the measured 19.7 s → 1.5 s freeze fix from the
+original pathfinding work). The enemy would dodge in place forever at a waypoint
+it can never reach. With a cooldown instead: a dodge that works clears the counter
+naturally via `_drive`, and one that does not still escalates to abandoning the
+waypoint. Probe asserts `_stuck_time` survives the dodge and that
+`stuck_timeout` > `UNSTICK_STUCK_TIME`. Easy to switch to the literal reset if
+you disagree — one line.
+
+**Behaviour change worth noticing:** the LoS fallback now requires line of sight
+in **both** branches, where the previous version let "ran out of path" charge
+without it. So an enemy that loses its path but cannot see the player no longer
+beelines at a remembered position through the clutter. This is what the spec asked
+for and I think it is right, but it does make chasers give up more readily in a
+dense maze.
+
+Ordering inside `_physics_process` is load-bearing: path velocity →
+`_line_of_sight_fallback` → `_corner_slide` → `_unstick`. The two assists run last
+so they steer whatever the enemy actually chose to do, path-following or charging.
+
+Added beyond the spec: `add_exception(self)` on both feelers in `_ready()`. Their
+origins at ±0.3 sit inside the 0.4-radius capsule, so without it the enemy reads
+its own body as the corner ahead and steers in circles. Verified the exception
+holds.
+
+**Known issue, flagged not fixed.** Feeler mask 1 also sees other enemies and the
+player — everything is on layer 1. A dense swarm will corner-slide off its own
+members, which may read as natural crowd flow or as jitter. Same class of issue
+the reverted JumpRay had. Documented in §2d.
+
+**Verification:** headless probe (since deleted). Both feelers present with exact
+transforms, targets and mask; `direct_charge_distance` 4.0; all three methods
+present. Live test on a floor with a wall placed to block only the left feeler:
+left hit true / right hit false, self-exception held (collider was the wall),
+and `_corner_slide((0,0,−8))` returned **(4.8, 0, −6.4)** — steered right, a ~37°
+bend, speed preserved at exactly 8.0. Idle input passes through untouched.
+Unstuck: no dodge below threshold; at `_stuck_time` 0.7 it returned a
+lateral-dominant vector, forced `_since_repath` > 900, left `_stuck_time` at 0.7,
+and suppressed an immediate second dodge via the cooldown.
+
+**Not verified in play.** No windowed run and no test with multiple enemies, so
+crowd behaviour — the main risk given the mask-1 issue above — is unmeasured.
+
+## 2026-08-03 21:15 — Pistol overhauled into the 25 s Stasis Cannon
+
+The Pistol is now a single-shot slow weapon on a 25-second cooldown with a blue
+charge bar. Scene/script filenames still say "Pistol" — only the behaviour
+changed.
+
+**Changed:**
+- `scenes/Enemy.gd` — new `@export_group("Debuffs")` with `default_slow_factor`
+  (0.4) and `default_slow_duration` (5.0); `_slow_timer` / `_slow_factor` vars;
+  `apply_slow(factor, duration)`; timer decrement in `_physics_process`;
+  `_current_speed()` multiplies by `_slow_factor` while the timer runs. Also
+  added `is_slowed()` / `slow_remaining()` as hooks for a future HUD tell.
+- `scenes/Pistol.gd` — removed `magazine_size`, `magazine_count`,
+  `infinite_ammo`, `reload_time`, `_reloading`, `ammo_label`, `_bullets`,
+  `_mags`, `_update_ammo_label()`, `_reload()`, `_on_reload_finished()`.
+  Added `cooldown_time` (25.0), `slow_factor` (0.4), `slow_duration` (5.0),
+  `cooldown_bar: ProgressBar`, `_cooldown_timer`. Fire input moved from
+  `_process` polling to `_unhandled_input`. `_apply_impact()` now offers
+  `apply_slow` before `take_damage` / `apply_hit`, all via `has_method()`.
+- `scenes/Player.tscn` — `AmmoLabel` removed; new `GunBar` ProgressBar at
+  bottom-right (anchors preset 3, offsets −220/−50/−20/−20, `show_percentage`
+  off, `theme_override_styles/fill` → new `StyleBoxFlat` sub-resource with
+  `bg_color` `Color(0.2, 0.65, 1, 1)`). Pistol node header updated to
+  `node_paths=PackedStringArray("ray", "cooldown_bar")` with
+  `cooldown_bar = NodePath("../../../HUD/GunBar")`.
+- `CLAUDE.md` — Pistol section rewritten as "Slot 1 — Stasis Cannon"; HUD tree
+  line `AmmoLabel` → `GunBar`; §2d gains a "Stasis (`apply_slow`)" paragraph and
+  the two new tunables; §3 controls table updated (`slot_1` label, `fire` row,
+  and `reload` marked unused).
+
+**Notes:**
+
+**Three consequences of the spec worth knowing, all deliberate:**
+1. **`fire_cooldown` was removed too**, though it was not on the removal list. A
+   0.15 s gate is entirely subsumed by a 25 s one, and leaving both would leave a
+   reader guessing which governs. Nothing overrode it in either .tscn. Say the
+   word if you want it back.
+2. **The weapon now has no fire animation at all.** The dip/tilt tween belonged
+   to the reload system, which the spec removed, and `reload_dip` /
+   `reload_tilt_deg` / `_rest_position` / `_rest_rotation` went with it. A 25 s
+   cannon firing with zero visual kick will feel weak — recoil is worth adding,
+   but inventing one was outside the ask.
+3. **The `reload` action (R) is now bound to nothing.** Left defined in
+   `project.godot` rather than removed, since editing that file needs an editor
+   reload to take effect (§5) and an orphan action is harmless.
+
+Fire input moved to `_unhandled_input` as specced, from `_process` polling. Safe
+against the existing conflicts: `Player._unhandled_input` also reads `fire` (to
+throw a carried prop) and `PrepCamera` uses it for dragging, but weapons are
+holstered — `equipped == false` — in both of those states, so the gate at the top
+of the handler resolves it. The event is deliberately **not** consumed, to keep
+the change behaviourally minimal.
+
+**Verification:** headless probe (since deleted). `AmmoLabel` gone; `GunBar`
+present with the exact offsets, anchors all 1.0, `show_percentage` false, and
+fill `bg_color` (0.2, 0.65, 1, 1). `cooldown_bar` **resolved to the real node**,
+confirming the `node_paths` marker is right — this is the silent-null trap from
+§5, so it was checked explicitly rather than assumed. All five removed properties
+confirmed absent. Enemy: patrol speed 8.0 → 3.2 and chase 10.8 → 4.32 (both
+exactly 0.4×), speed restored on expiry, and a double hit leaves factor 0.4 and
+not 0.16 — i.e. replace, not stack.
+
+Also confirmed GDScript accepts **member variables as default argument values**
+(`apply_slow()` with no args resolved to 0.4 / 5.0 from the exports). That was
+the one uncertain construct here; it works, so the exports are genuinely the
+defaults rather than dead config.
+
+**Not verified in play.** No windowed run: the bar's on-screen appearance, and
+whether 25 s feels right, are unchecked. Also note the cannon's `damage` (15) is
+still inert against enemies — there is no health system, so the slow is the only
+thing a shot actually does to them.
+
+## 2026-08-03 21:06 — REVERTED the 20:59 jump work
+
+User did not like the jump changes. Everything from the 20:59 entry below is
+undone. **That entry is left in place deliberately** — this log is append-only,
+and a reverted experiment is exactly the kind of thing the next agent needs to
+know was already tried. Do not re-implement it without asking.
+
+**Changed:**
+- `scenes/Player.gd` — `jump_velocity` back to 6.5 (peak ~1.06 m), original doc
+  comment restored.
+- `scenes/Enemy.tscn` — `JumpRay` node removed.
+- `scenes/Enemy.gd` — removed the `jump_velocity` export, the `jump_ray`
+  `@onready`, `_jump_cooldown`, the three `JUMP_*` consts, `_try_jump()` and its
+  call site, the cooldown decrement in `_physics_process`, the
+  `jump_ray.add_exception(self)` in `_ready()`, and the `_apply_phase` reset.
+- `CLAUDE.md` — the "Hopping obstacles" subsection, the `JumpRay` known-issue
+  note, and both tunable-list edits reverted to their prior wording.
+
+**Scope:** only the 20:59 jump work. The chase/arrival fixes (20:05), the 45 s
+wave interval (20:31) and the Minimap (20:44) were all left in place, and were
+explicitly re-checked after the revert.
+
+**Verification:** grepped the whole tree for `jump_ray|JumpRay|_jump_cooldown|
+_try_jump|JUMP_` — no hits outside this log. Headless probe (since deleted)
+confirmed both scenes still load and both scripts still compile;
+`Player.jump_velocity` is 6.5; `JumpRay` is gone and `_try_jump` no longer
+exists; and the earlier work survived untouched — agent `radius` 0.5,
+`target_desired_distance` 0.5, `path_desired_distance` 0.8,
+`direct_charge_distance` 3.0, `_apply_arrive_tuning` present, `HUD/Minimap`
+present, `wave_interval` 45.0.
+
+## 2026-08-03 20:59 — Higher player jump + enemies can now hop obstacles
+
+**Changed:**
+- `scenes/Player.gd` — `jump_velocity` 6.5 → 8.5. Peak height is
+  `v^2 / (2 * gravity)`, so against gravity 20 that is 1.06 m → 1.81 m. Doc
+  comment updated to match.
+- `scenes/Enemy.tscn` — new `JumpRay` (RayCast3D) child at `Vector3(0, 0.4, 0)`
+  (knee height), `target_position` `Vector3(0, 0, -1.2)` (forward, since -Z is
+  the capsule's forward), `collision_mask` 1. Left `enabled` at its default true
+  so it self-updates each physics frame — unlike `SightRay`, which is aimed by
+  hand and so must stay disabled.
+- `scenes/Enemy.gd` — new `@export var jump_velocity := 8.5` (deliberately the
+  same reach the player has), `@onready var jump_ray` via `get_node_or_null` with
+  null guards throughout, `var _jump_cooldown`, and `_try_jump(desired)`.
+  Triggers on any of: JumpRay colliding, `_stuck_time > 0.2`, or next path point
+  more than 0.3 above the enemy. Gated on `is_on_floor()`, on actually wanting to
+  move, and on a 0.6 s cooldown. Cooldown decrements at the top of
+  `_physics_process` and resets in `_apply_phase`.
+- `CLAUDE.md` — Player movement tunables now carry the 8.5 value and the height
+  formula; §2d gains a "Hopping obstacles" subsection and `jump_velocity` in the
+  tunables list.
+
+**Notes:**
+
+Placement of `_try_jump()` matters: it runs **after** the desired horizontal
+velocity is computed but **before** the handoff to avoidance. It writes only
+`velocity.y`, and `_drive()` overwrites x/z while leaving y untouched, so the hop
+survives whichever route the horizontal velocity takes — direct drive or the
+`velocity_computed` callback. Also note the gravity block at the top of
+`_physics_process` zeroes `velocity.y` while grounded, so the jump write has to
+come after it, which it does.
+
+Three magic numbers were made named consts (`JUMP_COOLDOWN` 0.6,
+`JUMP_STUCK_THRESHOLD` 0.2, `JUMP_STEP_HEIGHT` 0.3) rather than exports, to keep
+the export list exactly as specced.
+
+Added beyond the spec: `jump_ray.add_exception(self)` in `_ready()`. The ray
+origin at y 0.4 sits **inside** the capsule (which spans y 0..1.8), so without it
+the enemy can report its own body as the obstacle ahead and hop forever. Verified
+the exception takes effect.
+
+**Known issue, flagged not fixed.** `JumpRay`'s mask 1 also sees other enemies
+and the player — everything is on collision layer 1. A tightly packed swarm will
+hop against itself, and a chasing enemy will hop on approach to the player. Fix
+is a dedicated mask or excluding the enemy layer, but that is a feel call and the
+spec pinned mask 1. Documented in §2d as a known issue.
+
+**Verification:** headless probe (since deleted). Confirmed both `jump_velocity`
+values are 8.5 and both peaks compute to 1.81 m (player and enemy match exactly);
+`JumpRay` present with position (0, 0.4, 0), target (0, 0, -1.2), mask 1;
+`_try_jump` and all three consts present. Then drove a live enemy standalone
+(`is_action_phase` forced on) into a 0.8 m kerb on a test floor: JumpRay saw the
+kerb, the self-exception held (collider was the kerb, not the enemy), and over 90
+frames the capsule rose **1.879 m** off its resting height — i.e. it really
+jumped and cleared the obstacle, not just twitched.
+
+**Not verified in play.** No windowed run, so how the jump feels for the player
+at 8.5, and whether the swarm's hopping reads well in a real crowd on the bench,
+are both unchecked.
+
+## 2026-08-03 20:44 — New Minimap radar HUD element
+
+**Changed:**
+- `scenes/Minimap.gd` — **new.** A `Control` that paints a top-left tactical
+  radar in `_draw()`: dark disc, green border ring + faint crosshair/half-range
+  grid, props as rotated grey rectangles at their real footprint, enemies as red
+  dots, player as a green arrow at centre pointing up. `_process()` calls
+  `queue_redraw()`. Exports: `radar_radius_meters` (30), `radar_pixel_radius`
+  (70), `enemy_group`/`prop_group`/`player_group`, `rotate_with_player` (true).
+- `scenes/Player.tscn` — added `HUD/Minimap` (Control, `layout_mode = 3`, offsets
+  20/20 → 180/180 = 160×160) with the script attached, plus the `7_minimap`
+  ext_resource. Inserted **before** the `SettingsMenu` node so it draws under the
+  pause overlay.
+- `CLAUDE.md` — §2 `Player.tscn` tree gains the Minimap line and a full component
+  description. Also corrected the tree diagram, which showed `SettingsMenu` as a
+  child of `HUD`; it is actually a child of the Player root.
+
+**Notes:**
+
+`enemy_group` defaults to `"enemies"` to match `WaveSpawner.gd:25` — checked
+rather than assumed, since nothing else in the project uses that group name.
+
+Two things I added that were not in the spec, both to avoid known traps:
+- `mouse_filter = 2` (IGNORE) on the node. Without it the 160×160 Control sits
+  over the top-left corner eating clicks, and the PREPARATION drag tool would go
+  dead in that region of the screen.
+- Prop footprints are measured once and **cached** by instance id.
+  `shape.get_debug_mesh()` rebuilds geometry and there are ~500 draggables;
+  measuring per frame inside `_draw()` would have been the most expensive thing
+  on the HUD by a wide margin. Only the transform is re-read each frame.
+
+**Verification:** headless probe (since deleted) confirmed `Player.tscn` loads
+with `HUD/Minimap` present, script compiled, size 160×160 at offset (20, 20),
+`mouse_filter` 2, and all six exports at their defaults. Radar projection checked
+against hand-computed expectations — 10 m ahead draws straight up, 10 m right
+draws right, 10 m behind draws down, and both hold after a 90° player yaw
+(confirming `rotate_with_player`). Footprint measurement returned exact
+half-extents (2, 3) for a 4×6 box and fell back to the 2×2 default for geometry-
+less input. The probe also caught a real latent bug: `_visual_footprint()` called
+`global_transform` on a node possibly outside the tree, which errors and silently
+returns identity — guarded now.
+
+**Not verified visually.** No windowed run was done, so the actual on-screen
+appearance — colours, scale legibility, whether 30 m is a useful range on a
+220-unit bench — is unchecked. Also unresolved by design: the radar stays visible
+during PREPARATION, when `PrepCamera` owns the view and the player is not really
+in the world. It may want hiding on `phase_changed`, but that was not specified
+so it was left alone.
+
+## 2026-08-03 20:31 — Wave interval tightened 60 s → 45 s
+
+**Changed:**
+- `scenes/WaveSpawner.gd` — `@export var wave_interval` 60.0 → 45.0. Nothing else
+  needed touching: both `_ready()` and `_start_waves()` read the export into
+  `_timer.wait_time` via `maxf(wave_interval, 1.0)`, so the new value is picked
+  up on the next round start.
+- `CLAUDE.md` — §2f now says `wave_interval` (45 s). Also reworked that
+  paragraph's example, which was written around the old 60 s value and read
+  "minute 1 = 6, minute 2 = 7"; it is now "0:45 = 6, 1:30 = 7, 2:15 = 8", which
+  is the same rule stated against the clock rather than against minutes.
+
+**Notes:** Ramp is now noticeably steeper — wave N arrives a third sooner, so the
+board reaches `max_live_enemies` (120) correspondingly earlier in a long round.
+Not play-tested; no verification run was done for this change.
+
 ## 2026-08-03 20:05 — Enemies now close to contact instead of stopping short
 
 Chasing enemies halted ~2.5 m from the player and stood there, and the swarm

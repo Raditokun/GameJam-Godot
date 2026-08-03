@@ -194,10 +194,43 @@ Player (CharacterBody3D)
 └── HUD (CanvasLayer)
     ├── StatsLabel     -- velocity/pos/angle/bhop-gain debug readout
     ├── PhaseLabel     -- current phase, attempt number and that phase's keys
-    ├── AmmoLabel      -- pistol ammo, hidden when sword equipped
+    ├── GunBar         -- ProgressBar, Stasis Cannon charge; hidden when sword equipped
     ├── Crosshair      -- drawn Control (Crosshair.gd), auto-hides when mouse not captured
-    └── SettingsMenu   (instance of SettingsMenu.tscn) -- Esc pause/settings overlay
+    └── Minimap        -- drawn Control (Minimap.gd), top-left tactical radar
+└── SettingsMenu       (instance of SettingsMenu.tscn) -- Esc pause/settings overlay
 ```
+
+(`SettingsMenu` is a child of the Player root, **not** of `HUD` — it brings its
+own CanvasLayer.)
+
+**`scenes/Minimap.gd`** — the top-left radar, a 160 × 160 `Control` at
+`HUD/Minimap`, offset (20, 20). Everything is painted in `_draw()` (with
+`_process` calling `queue_redraw()`) rather than built from child nodes: the
+contents change every frame and most of them are off-radar at any moment.
+- Shows the maze as blocky grey rectangles at their real footprint and angle, the
+  swarm as red dots, and the player as a green arrow fixed at the centre pointing
+  up. `radar_radius_meters` (30) of world maps onto `radar_pixel_radius` (70) px.
+- **It exists because of the aggro mechanic.** Enemies only chase what they can
+  see, so without a radar the only way to find out where the swarm is would be to
+  step out from cover and look — which is precisely the mistake that gets the
+  player killed. The radar lets them gather that information without breaking
+  line of sight.
+- `rotate_with_player` (true) turns the disc so the player's facing is always up.
+  The projection takes the player's forward as **-Z**, matching the capsule and
+  the enemies, and negates the forward component because screen Y grows downward.
+  Prop rectangles rotate by `player_yaw - prop_yaw`, not the other way round.
+- Contacts are found by group — `enemy_group` ("enemies", matching
+  `WaveSpawner`), `prop_group` ("draggable"), `player_group` ("player") — so
+  runtime-spawned enemies appear with no wiring. Enemy dots are skipped when
+  `is_queued_for_deletion()`, or a just-cleared wave keeps painting for a frame.
+- **Prop footprints are measured once and cached** by instance id.
+  `shape.get_debug_mesh()` rebuilds geometry, and there are ~500 draggables, so
+  measuring inside `_draw()` would cost more than the rest of the HUD together.
+  Only the transform is re-read per frame, which is what a dragged prop changes.
+  Falls back to visual bounds, then to a 2 × 2 m block.
+- `mouse_filter = 2` (IGNORE) in the scene. Load-bearing: the radar sits over the
+  top-left corner of the screen, and a Control that accepts input there would
+  swallow clicks meant for the PREPARATION drag tool.
 
 **Movement/bhop tunables** (`Player.gd`, all `@export`):
 `mouse_sensitivity`, `pitch_limit_deg`, `max_speed` (7.0), `walk_speed` (3.5),
@@ -217,21 +250,44 @@ Weapon slot switching lives in `Player.gd`: `weapons: Array[Node3D]` =
 
 ### Weapon System
 
-**Slot 1 — Pistol** (`scenes/Pistol.tscn`, script `Pistol.gd`)
+**Slot 1 — Stasis Cannon** (`scenes/Pistol.tscn`, script `Pistol.gd` — node and
+files still carry the "Pistol" name from when it was one)
+- **One shot every `cooldown_time` (25 s), and it slows rather than kills.** The
+  cooldown is the design, not a balance knob: at 25 s the shot is a resource, not
+  a weapon. It cannot fight a swarm, only buy time against the one enemy about to
+  reach the player, or hold a choke point open long enough to get through it.
+  Firing at the wrong moment leaves the player with nothing for 25 s — which is
+  what keeps the maze the real answer to the swarm and the cannon just the
+  escape hatch.
 - Hitscan: fires via the shared `Head/Camera3D/RayCast3D`, resolved with
   `force_raycast_update()` at the moment of firing (not last physics tick).
-- Fires on the `fire` action, gated by `fire_cooldown` (0.15s) and `equipped`.
+- Fires on the `fire` action from `_unhandled_input`, gated on `equipped` and
+  `_cooldown_timer == 0.0`.
 - Spawns a fading unshaded white beam (`_spawn_tracer`) from the muzzle to the
   hit point (or ray's max range if nothing hit); parented to the current scene
   (not the weapon) so it stays put in the world. Tunables: `tracer_lifetime`
   (0.25s), `tracer_thickness`, `tracer_color`, `tracer_draw_on_top`.
-- Ammo: `magazine_size` (15), `magazine_count` (7), `infinite_ammo` (true by
-  default — counters display but never drop). Reload (`reload` action) plays a
-  tween dip/tilt over `reload_time` (1.0s) and blocks firing meanwhile.
-- `ammo_label` (exported `Label` ref → HUD/AmmoLabel) shows `"N / mag \n MAGS m"`.
+- On a hit, `_apply_impact` offers the collider `apply_slow(slow_factor,
+  slow_duration)` (0.4 / 5.0), then `take_damage` and `apply_hit` — **all three
+  through `has_method()`**, so the weapon knows nothing about the enemy type and
+  shooting plain geometry stays a no-op. Enemies have no health system, so only
+  the slow currently does anything to them.
+- `cooldown_bar` (exported `ProgressBar` ref → HUD/GunBar) shows charge as
+  `(1 - timer/cooldown_time) * 100` — a meter **filling back up**, which reads as
+  "ready?" far better than a countdown draining away. `_ready()` forces the bar's
+  range to 0–100 rather than trusting the scene, since the value is a percentage.
+- The cooldown ticks in `_physics_process` whether or not the weapon is equipped,
+  so switching to the sword is not a way to dodge it.
 - **Important:** the `Pistol` node in `Player.tscn` must declare
-  `node_paths=PackedStringArray("ray", "ammo_label")` in its `[node]` header or
+  `node_paths=PackedStringArray("ray", "cooldown_bar")` in its `[node]` header or
   these exported NodePaths silently resolve to `null` (see §5 below).
+- Ammo, magazines and the reload animation were **removed** in the overhaul — a
+  weapon that fires once every 25 s has nothing to reload. `fire_cooldown` went
+  with them, being wholly subsumed by the 25 s timer. The `reload` input action
+  is still defined in `project.godot` but is now bound to nothing.
+- **No fire animation.** The reload dip/tilt tween was the weapon's only movement
+  and went with the reload system, so the cannon currently fires with no recoil
+  or visual kick at all. Worth adding.
 
 **Slot 2 — Sword** (`scenes/sword.tscn`, script `Sword.gd`, wraps a `.blend`
 katana model in `3DModels/`)
@@ -341,8 +397,12 @@ enemy neither moves nor looks, and entering PREPARATION resets it to PATROL and
 returns it to its spawn transform, so every retry runs from the same setup.
 
 **Aggro — the "Order in Disorder" twist.** Two conditions, both required:
-- `DetectionArea` (Area3D, sphere r 45, layer 0 / mask 1) reports the player —
-  found by the `player` group, which `Player.tscn`'s root now carries.
+- `DetectionArea` (Area3D, sphere **r 250**, layer 0 / mask 1) reports the player
+  — found by the `player` group, which `Player.tscn`'s root now carries. 250 is
+  **bench-wide**: the table is ~220 units end to end, so proximity is no longer a
+  real gate and line of sight is doing all the work. That is the intent — clutter
+  is meant to be the only thing hiding the player, not distance. `SightRay`
+  reaches the same 250.
 - `SightRay` (RayCast3D at `eye_height` 1.5) reaches the player's chest
   unblocked. Anything else the ray hits first — the bowl, a wall — denies aggro.
   **Standing behind clutter is therefore cover even at point-blank range**,
@@ -362,31 +422,103 @@ player every `chase_repath_interval` (0.2 s), moving at `chase_speed_scale`
 the chase alive, without which the state flickers every time the player clips an
 obstacle edge. Emits `aggro_changed(chasing)`; `is_chasing()` reports state.
 
-**Closing the last few metres.** A navmesh path ends at the nearest *walkable*
-point to the target, and the player is almost never standing on one — they are up
-against clutter, inside a carve outline, on the tilted bench. A chaser that only
-follows the path therefore runs out of path short of the player, zeroes its
-velocity and stands there, reading as the enemy losing interest at the exact
-moment it should be dangerous. Two things fix it, and both are needed:
-- `_apply_arrive_tuning()` sets `agent.target_desired_distance` from the state —
-  `chase_arrive_distance` (0.5) while chasing, `patrol_arrive_distance` (2.0)
-  while patrolling. Called on every aggro flip **and** from `_apply_phase()`,
-  which sets the state directly without going through `_update_aggro()`.
-- `_physics_process()` then overrides the path-following velocity with a direct
-  horizontal vector at the player when the agent reports navigation finished, or
-  when it is within `direct_charge_distance` (3.0) *and* has line of sight.
-  Skipped inside `MIN_CHARGE_OFFSET` (0.2), where normalising the offset just
-  makes the enemy spin.
+**Chasing bypasses the navmesh entirely.** `_line_of_sight_fallback()` overrides
+the path-following velocity with a direct horizontal vector at the player
+whenever a chasing enemy is further than `chase_arrive_distance` (0.5) away —
+i.e. essentially the whole chase. **Pathfinding now governs PATROL only.**
 
-The sightline for that check reads `_sees_player`, cached by `_update_aggro()`
-earlier in the same frame, **not** a second `has_line_of_sight()` call — that
-method forces a raycast on every call, and at `max_live_enemies` (120) a second
-cast per enemy per frame is real budget.
+That reads like giving up on navigation, and it is, on purpose. The props' carve
+outlines fragment the bench into ~27 disconnected navmesh regions (§2e), so for
+most of the table there is *no route at all* from an enemy to the player: the
+agent takes a path to the nearest reachable point, reports
+`is_navigation_finished()` while still far away, and stops dead. That is the
+"enemies freeze at a distance" symptom. Driving straight at the player is the
+only thing that crosses a fragmented mesh, and the steering layers that run after
+it — `_corner_slide()` off the feelers, then `_unstick()` — are what keep it from
+walking face-first into the clutter. **If the navmesh fragmentation is ever
+fixed** (fewer props, or smaller carve outlines) this is worth revisiting, since
+real pathfinding around the maze would be better AI than a beeline.
+
+Note this no longer gates on line of sight, so during the `aggro_memory` (2 s)
+tail after the player breaks cover, the enemy keeps charging their last known
+position. Skipped inside `MIN_CHARGE_OFFSET` (0.2), where normalising the offset
+just makes the enemy spin.
+
+`_apply_arrive_tuning()` still sets `agent.target_desired_distance` from the
+state — `chase_arrive_distance` (0.5) chasing, `patrol_arrive_distance` (2.0)
+patrolling — called on every aggro flip **and** from `_apply_phase()`, which sets
+the state directly without going through `_update_aggro()`. It matters for patrol
+and it is what `chase_arrive_distance` means as the direct-pursuit threshold.
+
+**Corner-slide assist and unstuck recovery.** Three steering layers run in a
+fixed order at the end of `_physics_process`, each taking the previous one's
+`desired` velocity and handing on a new one:
+`_line_of_sight_fallback()` → `_corner_slide()` → `_unstick()`. The order is
+load-bearing: the two assists run **last** so they steer whatever the enemy
+actually decided to do, whether that is following the path or charging the
+player.
+
+- **Feelers.** `FeelerLeft` / `FeelerRight` are RayCast3Ds at knee height (y 0.4),
+  splayed out from ±0.3 to ±0.8 over 1.0 forward, mask 1. Navmesh paths cut
+  corners and RVO only knows about *other agents*, so the capsule scrapes prop
+  edges it was routed past; the angled feelers see the edge before the body
+  reaches it. Both take `add_exception(self)` in `_ready()` — they start inside
+  the capsule's own radius, and without it the enemy reads its own body as the
+  corner and steers in circles.
+- **`_corner_slide()`** deflects by `global_transform.basis.x` (the enemy's right)
+  scaled by `CORNER_SLIDE_STRENGTH` (0.75), then renormalises to speed — so it is
+  a blend weight, not an absolute, and can never overpower the direction the agent
+  wants. A left hit pushes right and vice versa. **Fires only when exactly one
+  feeler is blocked:** both blocked is a dead end, not a corner, and deflecting
+  there just picks which wall to grind against — that case belongs to `_unstick`.
+  Measured: straight-ahead (0, 0, −8) with only the left feeler blocked becomes
+  (4.8, 0, −6.4), a ~37° bend at unchanged speed.
+- **`_unstick()`** throws a random lateral dodge once `_stuck_time` passes
+  `UNSTICK_STUCK_TIME` (0.6 s), and forces `_since_repath = 999.0` — the route it
+  was on leads into the thing it is wedged against, so the same path would walk it
+  straight back in.
+
+**`_unstick()` deliberately does not zero `_stuck_time`**, using its own
+`UNSTICK_COOLDOWN` (0.4 s) to avoid dodging every frame. Zeroing the shared
+counter every 0.6 s would cap it below `stuck_timeout` (1.5 s) permanently, which
+silently kills `_advance_patrol()`'s waypoint give-up — the only thing that
+rescues a route valid on the navmesh but impassable to the capsule — and would
+strand the enemy dodging in place at a waypoint it can never reach. Leaving the
+counter climbing means a dodge that works clears it naturally through `_drive()`,
+and one that does not still escalates to abandoning the waypoint.
+
+**Known issue:** the feelers' mask 1 also sees **other enemies and the player**,
+which are on layer 1. A dense swarm will therefore corner-slide off its own
+members. That may read as natural crowd flow or as jitter — give the feelers a
+dedicated mask if it looks wrong.
+
+**Stasis (`apply_slow`).** `apply_slow(factor, duration)` scales the enemy to
+`factor` of its speed for `duration` seconds; `_current_speed()` applies it, so it
+slows patrol, chase and the direct charge alike. Defaults come from
+`default_slow_factor` (0.4) and `default_slow_duration` (5.0). Called by the
+Stasis Cannon purely through `has_method()`, so the weapon has no dependency on
+the enemy type. **A fresh hit replaces the current stasis rather than stacking** —
+two shots must not compound into a near-total freeze, and re-arming the full
+duration is what a player expects from re-applying a debuff. `is_slowed()` and
+`slow_remaining()` are there for a future HUD tell or a shader tint.
 - Tunables: `move_speed` (8.0), `chase_speed_scale` (1.35), `turn_speed`,
-  `gravity`, `goal_group`, `goal_position`, `arrive_distance`,
-  `waypoint_timeout`, `repath_interval` (0.4), `player_group`, `aggro_range`,
-  `eye_height`, `target_height`, `aggro_memory`, `chase_repath_interval`,
-  `chase_arrive_distance`, `patrol_arrive_distance`, `direct_charge_distance`.
+  `gravity`, `default_slow_factor` (0.4), `default_slow_duration` (5.0),
+  `goal_group`, `goal_position`, `arrive_distance`,
+  `waypoint_timeout`, `repath_interval` (0.4), `player_group`,
+  `aggro_range` (250.0 — fallback only; `_ready()` reads the DetectionArea
+  sphere), `eye_height`, `target_height`, `aggro_memory`,
+  `chase_repath_interval`, `chase_arrive_distance` (0.5 — doubles as the
+  direct-pursuit threshold), `patrol_arrive_distance`.
+
+**Performance risk, unmeasured.** Going from r 45 to r 250 makes each enemy's
+`DetectionArea` cover the whole bench, and its mask is 1 — the same layer the
+~500 props sit on. At `max_live_enemies` (120) that is on the order of 60,000
+area-overlap pairs the broadphase has to maintain, plus a 250-unit `SightRay`
+cast per enemy per frame instead of a 45-unit one. The scene was already sitting
+exactly on the 16.7 ms budget (§2e), so **this wants profiling with a full wave
+before it is trusted.** The clean fix if it does bite is to put the player on a
+dedicated collision layer and narrow the DetectionArea mask to only that, so the
+props stop being tested at all.
 
 **Known issue, not yet fixed:** `_ready()` sets `agent.max_speed = move_speed`,
 but a chasing enemy asks for `move_speed * chase_speed_scale`. With avoidance on
@@ -410,7 +542,15 @@ away with the bowl on the sightline gives `line_of_sight=false` and the ray
 reports hitting `bowl_dirty2`, so it keeps patrolling; move the bowl aside and
 it switches to CHASE, retargets onto the player and closes 20.6 → 2.4 units in
 1.5 s; teleport the player away and it holds the chase through `aggro_memory`
-then drops back to PATROL.
+then drops back to PATROL. **These were measured at the old r 45 detection range**
+— the "out of range" cases no longer exist at r 250, where only cover denies
+aggro.
+
+Measured (250 m aggro): sightline is clear at 200 units on an empty bench and
+denied at 200 units with a wall on the line, so range genuinely stopped being the
+gate and cover still is. Direct pursuit returns full speed at 100 units and at
+2 units, passes the input straight through inside `MIN_CHARGE_OFFSET`, and leaves
+PATROL untouched.
 
 ### 2f. Wave Spawning (`scenes/WaveSpawner.gd`)
 
@@ -418,8 +558,8 @@ then drops back to PATROL.
 off `GameState` — no node paths into the round logic.
 
 **The maths.** Wave 1 is `first_wave_size` (5) enemies the instant ACTION begins; every
-`wave_interval` (60 s) another wave arrives carrying `enemies_per_wave` (1) more than the
-last, so minute 1 = 6, minute 2 = 7. `max_live_enemies` (120) caps the board so a long
+`wave_interval` (45 s) another wave arrives carrying `enemies_per_wave` (1) more than the
+last, so 0:45 = 6, 1:30 = 7, 2:15 = 8. `max_live_enemies` (120) caps the board so a long
 round cannot melt the frame budget.
 
 **Phase integration.** Only `phase_changed` is connected, **not** `round_reset` —
@@ -711,13 +851,13 @@ build tool, in ACTION they drive the weapons.
 | `jump` | Space | Held for auto-bhop when `auto_bhop = true` |
 | `crouch` | C / Ctrl | |
 | `walk` | Shift | Slows to `walk_speed`; overridden by crouch if both held |
-| `slot_1` | 1 | Equip Pistol |
+| `slot_1` | 1 | Equip Stasis Cannon |
 | `slot_2` | 2 | Equip Sword |
 | `slot_next` | Mouse wheel down | Action: cycle weapon forward. Preparation: rotate held object |
 | `slot_prev` | Mouse wheel up | Action: cycle weapon backward. Preparation: rotate held object |
-| `fire` | Left Click | Preparation: hold to drag a `draggable` object under the cursor. Pistol: shoot. Sword: melee swing. Carrying: throw the prop |
+| `fire` | Left Click | Preparation: hold to drag a `draggable` object under the cursor. Stasis Cannon: fire (25 s cooldown). Sword: melee swing. Carrying: throw the prop |
 | `interact` | E | Collect a coin when in range (consumes the press), otherwise pick up / put down the prop under the crosshair |
-| `reload` | R | Pistol only |
+| `reload` | R | **Unused** — still defined in `project.godot`, but the Stasis Cannon has no reload |
 | `ui_cancel` | Esc | Opens/closes SettingsMenu; pauses the tree while open |
 
 ## 4. AI Workflow Rules

@@ -50,7 +50,7 @@ signal enemies_cleared(count: int)
 ## Added to the wave size on every subsequent wave.
 @export var enemies_per_wave := 1
 ## Seconds between waves.
-@export var wave_interval := 60.0
+@export var wave_interval := 45.0
 ## Hard ceiling on live enemies, so a long round cannot melt the frame budget.
 @export var max_live_enemies := 120
 
