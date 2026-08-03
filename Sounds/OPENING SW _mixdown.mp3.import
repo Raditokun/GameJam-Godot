@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://bpfes54ofjiq6"
+path="res://.godot/imported/OPENING SW _mixdown.mp3-52f3f8e253a13b3ac86bc9a4c38f7526.mp3str"
+
+[deps]
+
+source_file="res://Sounds/OPENING SW _mixdown.mp3"
+dest_files=["res://.godot/imported/OPENING SW _mixdown.mp3-52f3f8e253a13b3ac86bc9a4c38f7526.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

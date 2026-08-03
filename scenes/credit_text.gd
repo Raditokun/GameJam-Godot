@@ -16,7 +16,5 @@ func _process(delta):
 		finish_credits()
 
 func finish_credits():
-	# You can choose what happens when the credits end here. 
-	# For example, return to the main menu:
 	print("Credits finished!")
-	# get_tree().change_scene_to_file("res://Scenes/MainMenu.tscn")
+	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")

@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://ujwmx1iqnyq8" path="res://scenes/credit_text.gd" id="1_3pbma"]
 [ext_resource type="FontFile" uid="uid://buymujb17ux3s" path="res://Fonts/Dimbo Regular.ttf" id="1_cyc8d"]
+[ext_resource type="AudioStream" uid="uid://bpfes54ofjiq6" path="res://Sounds/OPENING SW _mixdown.mp3" id="3_12owj"]
 
 [node name="CreditScene" type="Control" unique_id=2125012763]
 layout_mode = 3
@@ -61,3 +62,7 @@ Ditto remix by @sol_invictus
 @mage_its"
 horizontal_alignment = 1
 script = ExtResource("1_3pbma")
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="." unique_id=752859489]
+stream = ExtResource("3_12owj")
+autoplay = true
