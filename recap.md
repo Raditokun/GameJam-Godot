@@ -6,6 +6,65 @@ the top.** Append-only; see `CLAUDE.md` §4 for the format and the rules.
 `CLAUDE.md` describes the project as it is now. This file records how it got
 there — including the dead ends.
 
+## 2026-08-03 23:28 — Main menu is now the startup scene, buttons wired
+
+**Changed:**
+- `project.godot` — `run/main_scene` `res://scenes/Main.tscn` →
+  `res://scenes/main_menu.tscn`.
+- `scenes/Control.gd` — all five handlers rewritten to the specified bodies.
+  Start now loads `Main.tscn`, Setting toggles the panel in place, Credits loads
+  `credit_scene.tscn`, Quit quits, Exit Setting sets both visibilities directly
+  instead of calling `_ready()`.
+- `scenes/main_menu.tscn` — **not in the task list, but required.** Un-crossed the
+  Start and Setting `pressed` connections. See below.
+- `CLAUDE.md` — §1 now has a "Scene entry points" subsection covering the boot
+  scene, the menu wiring, the crossed-signal trap and the credits dead end.
+
+**Notes:**
+
+**The one thing that would have broken this.** `main_menu.tscn` had
+`MainButtons/Start` connected to `_on_setting_pressed` and `MainButtons/Setting`
+connected to `_on_start_pressed` — crossed. `Control.gd`'s bodies were crossed to
+match (`_on_start_pressed` opened the settings panel, `_on_setting_pressed` loaded
+the game), so two wrongs cancelled and the menu behaved correctly while every
+handler did the opposite of its name. Applying the specified bodies **alone**
+would have turned the double negative into a single one and inverted the menu:
+Start would open Settings and Settings would start the game. I un-crossed the two
+connections in the .tscn as well, so names and behaviour now agree. Flagging it
+because it means this change touched a file outside the task list, and because
+fixing either side alone in future silently inverts the menu again.
+
+**`credit_scene.tscn` is a dead end — this task makes it reachable.** Previously
+`_on_credits_pressed()` just printed to console, so the button was a harmless
+no-op. It now actually loads the credits scene, and that scene has no way out:
+`credit_text.gd/finish_credits()` only prints, and its `change_scene_to_file` line
+is commented out *and* points at `res://Scenes/MainMenu.tscn` — wrong case and
+wrong filename (the real path is `res://scenes/main_menu.tscn`). A player who
+clicks Credits is stuck until they kill the process. **Not fixed here** because
+the right behaviour is a design call: auto-return when the scroll finishes, or
+return on any key press. Both are a few lines; say which and I will do it. For a
+jam build this is worth closing before submission.
+
+**Verification:** headless probe (since deleted). `run/main_scene` reads back as
+the menu; all three reachable scenes (`main_menu`, `Main`, `credit_scene`) exist
+and instantiate. Boot state correct (buttons visible, settings panel hidden). All
+five `pressed` connections were read off the live buttons and each now targets
+the correctly-named handler — this is the check that would have caught the
+crossed wiring. Settings toggle round-trips: Setting hides buttons and shows the
+panel, Exit Setting reverses it.
+
+**Not verified in play**, and one thing to be aware of: per §5, **editing
+`project.godot` does not take effect in an editor session that already has the
+project open** — Project → Reload Current Project, or the editor will keep
+launching `Main.tscn`. A fresh CLI/export run reads the new value fine, which is
+how the probe saw it.
+
+Also unverified: what happens to `GameState`/`GameSettings` autoload state across
+`change_scene_to_file` from the menu into `Main.tscn`. Autoloads persist across
+scene changes by design, so `GameState.attempt` will carry whatever it had — a
+non-issue on a fresh boot, but worth a look if the player ever returns to the
+menu and starts again.
+
 ## 2026-08-03 23:21 — Death trigger, camera shake, YOU DIED retry screen
 
 The die-and-retry loop finally has a "die". This closes the gap flagged at the

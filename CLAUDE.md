@@ -40,9 +40,34 @@ Underneath sits a Source-engine (Counter-Strike) style movement controller —
 ground/air acceleration, bunny-hopping, air-strafing, crouch — and a two-weapon
 combat kit (hitscan pistol, melee sword).
 
-Config: `project.godot`. Main scene: `res://scenes/Main.tscn`. Autoloads:
-`GameSettings` (`scenes/GameSettings.gd`) — persisted sensitivity/volume;
-`GameState` (`scenes/GameState.gd`) — the round phase machine.
+Config: `project.godot`. Autoloads: `GameSettings` (`scenes/GameSettings.gd`) —
+persisted sensitivity/volume; `GameState` (`scenes/GameState.gd`) — the round
+phase machine.
+
+### Scene entry points
+
+**`run/main_scene` is `res://scenes/main_menu.tscn`** — the game boots into the
+menu, not into the bench. `res://scenes/Main.tscn` is the gameplay scene, reached
+from the Start button; it is still perfectly runnable on its own (F6 in the
+editor) for testing, and every headless probe in this project loads it directly.
+
+**`scenes/main_menu.tscn`** (script `scenes/Control.gd`) — Start →
+`change_scene_to_file("res://scenes/Main.tscn")`; Setting → hides `MainButtons`
+and shows the `Setting` panel in place (no scene change), with Exit Setting
+reversing it; Credits → `res://scenes/credit_scene.tscn`; Quit →
+`get_tree().quit()`.
+- **The Start and Setting signals were crossed in the .tscn** — `MainButtons/Start`
+  was connected to `_on_setting_pressed` and vice versa — and `Control.gd`'s
+  bodies were crossed to match, so the menu worked while every handler did the
+  opposite of its name. Both sides are now un-crossed together. If you ever fix
+  one side alone the menu silently inverts, which is why this is written down.
+- **`credit_scene.tscn` has no way back.** `credit_text.gd/finish_credits()` only
+  prints; its `change_scene_to_file` line is commented out and points at
+  `res://Scenes/MainMenu.tscn`, which is the wrong case *and* the wrong filename
+  (the real path is `res://scenes/main_menu.tscn`). Clicking Credits therefore
+  strands the player until they kill the process. Not fixed here because the
+  right behaviour — auto-return when the scroll ends, or return on a key press —
+  is a design call.
 
 ## 1b. Phase System
 

@@ -319,8 +319,8 @@ theme_override_font_sizes/font_size = 30
 text = "Toogle FPS Counter"
 script = ExtResource("7_oa1go")
 
-[connection signal="pressed" from="MainButtons/Start" to="." method="_on_setting_pressed"]
-[connection signal="pressed" from="MainButtons/Setting" to="." method="_on_start_pressed"]
+[connection signal="pressed" from="MainButtons/Start" to="." method="_on_start_pressed"]
+[connection signal="pressed" from="MainButtons/Setting" to="." method="_on_setting_pressed"]
 [connection signal="pressed" from="MainButtons/Credits" to="." method="_on_credits_pressed"]
 [connection signal="pressed" from="MainButtons/Quit" to="." method="_on_quit_pressed"]
 [connection signal="pressed" from="Setting/Exit Setting" to="." method="_on_exit_setting_pressed"]
