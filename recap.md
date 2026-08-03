@@ -6,6 +6,96 @@ the top.** Append-only; see `CLAUDE.md` §4 for the format and the rules.
 `CLAUDE.md` describes the project as it is now. This file records how it got
 there — including the dead ends.
 
+## 2026-08-03 22:31 — Multi-convex prop colliders (V-HACD) + full scene rebuild
+
+**Changed:**
+- `tools/PropConverter.gd` — `build_collision_shapes()` now decomposes each mesh
+  into multiple convex hulls instead of taking one hull per mesh. New
+  `_decompose()` and `_named_shape()` helpers; new consts
+  `DECOMPOSE_MAX_CONCAVITY` (0.01), `DECOMPOSE_MAX_HULLS` (8), `MIN_HULL_POINTS`
+  (4). Degenerate meshes now fall back to their **own** tight AABB box per mesh,
+  rather than the whole prop falling back only when every mesh failed.
+  `_box_size_of()` → `_shape_count_of()` since most props no longer have a box.
+- `tools/rebuild_prop_colliders.gd` — **new tool.** Re-runs the shape builder
+  over already-converted props. Needed because `convert_scene()` skips anything
+  in the `draggable` group, so re-running the converter over Main.tscn is a
+  no-op. `--sample=N` dry-runs a projection, `--save` writes.
+- `scenes/Main.tscn` — **rebuilt.** 569 → 1804 collision shapes across 521 props;
+  290 props now have compound colliders. File 1.53 MB → 2.82 MB.
+- `CLAUDE.md` — §2e rewritten for multi-convex generation, the settings, the API
+  constraint, the cost measurements and the new tool; two new §5 gotchas.
+
+**Notes:**
+
+**Two API facts that shaped the implementation:**
+1. `Mesh.convex_decompose()` is **not exposed to GDScript** in Godot 4.7 — I
+   checked the method list directly. The only route is
+   `MeshInstance3D.create_multiple_convex_collisions()`, which works by adding a
+   StaticBody3D *child* to the node it is called on. `_decompose()` runs it on a
+   throwaway clone; calling it on the real model node would have parented a
+   StaticBody3D full of colliders inside all 521 props.
+2. `MeshConvexDecompositionSettings.max_concavity` defaults to **1.0**, which
+   accepts a single hull for any shape — the "decomposition" would have been
+   bit-identical to the old single-hull code, at 200 ms per prop, and would have
+   looked like it worked. Swept it on a synthetic table (slab + 4 legs):
+   1.0 → 1 hull, 0.1 → 4, 0.01 → 6, 0.001 → 6. Settled on 0.01.
+   `max_convex_hulls` was identical at 8 and 32, so 8.
+
+**A destructive mistake I made and caught — read this before writing any tool
+that saves Main.tscn.** My first rebuild ran the scene for a frame to get valid
+global transforms, then packed it. That let the game's own scripts edit the scene
+on the way out: `WaveSpawner._physics_process()` calls `clear_enemies()`, which
+adopts the hand-placed `Enemy` instance and `queue_free()`s it. The saved
+Main.tscn came out with the Enemy **silently missing** — 526 instances became 525
+and nothing errored. Caught it by diffing the instance-node name sets against
+`git show HEAD:scenes/Main.tscn`. Reverted with `git checkout`, restructured the
+tool to `await process_frame` **before** adding the scene and then do everything
+in that same frame with no further await, and added a hard assert that nothing is
+`is_queued_for_deletion()` before saving. Second run came out clean. Gotcha added
+to §5.
+
+**Verification of the rebuilt scene** (against `git show HEAD:scenes/Main.tscn`):
+node instances 526 → 526, **identical name set**; all key nodes present (Enemy,
+meja, bowl_dirty2, Player, Navigation, WaveSpawner, CoinSpawner, PrepCamera);
+522 NavigationObstacle3D preserved; 525 group assignments preserved; meja's
+`freeze = true` instance override survived; no `WaveTimer` leaked into the file
+(it has no owner, so pack() skips it). Spot-checked `table_round_A2`: 3+ hulls
+with Model instance, obstacle outline, mass, freeze and damping all intact.
+
+**Converter verification:** synthetic table (slab + 4 legs, 3× scale, rotated)
+produced **6 shapes** where a single hull gives 1; a point in the hollow under
+the tabletop is confirmed **not** inside any hull; collider span came out
+12.19 × 9.14 confirming the 3× model scale is correctly carried into body space
+while the body stays at scale 1. A degenerate flat plane still gets a collider.
+
+**Performance, measured rather than assumed** — this was my main worry, since 3×
+the shapes on a scene documented as sitting at budget could have been fatal.
+Benchmarked both scenes headless, 240 samples after 60 warm-up frames:
+
+| | shapes | mean | median | p95 | max |
+|---|---|---|---|---|---|
+| before | 579 | 3.12 ms | 3.12 | 4.45 | 5.66 |
+| after | 1814 | **2.80 ms** | 2.78 | **2.91** | **2.91** |
+
+It got *faster* and much more stable. The props are frozen and asleep, so extra
+hulls cost broadphase and memory, not narrowphase — and the tighter hulls seem to
+remove spurious contacts that caused the old variance. Conversion itself is slow
+(~200 ms/prop, ~110 s total) but that is a one-off tool cost.
+
+**Worth doing next, not done here:** the NavigationObstacle3D carve outlines were
+**not** refitted. They were fitted to the old single hulls, and the union of
+decomposed hulls is a subset of the single hull, so every outline is now equal to
+or *larger* than the prop's true footprint. That is the safe direction (never a
+sliver of floor inside a solid) but it means the bench is over-carved. Running
+`tools/refit_carve_outlines.gd` would tighten them, and given that carve
+over-reach is exactly what fragmented the navmesh into 27 disconnected regions —
+the thing that forced chase to bypass pathfinding at 21:51 — that could
+meaningfully open the bench back up. Say the word and I will run it.
+
+**Not verified in play.** No windowed run: whether the under-table spaces are
+actually usable by the player, and whether any prop now has a collider gap, are
+unchecked.
+
 ## 2026-08-03 21:51 — Bench-wide aggro (250 m) + chase now bypasses the navmesh
 
 **Changed:**

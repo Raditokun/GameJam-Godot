@@ -665,15 +665,49 @@ PropName (RigidBody3D)   groups: draggable, navmesh_source, scale 1
   christmas tree, 14% on a fridge, 8% on a streetlight. Convex specifically, not
   concave/trimesh: a trimesh collider is static-only and illegal on a moving
   RigidBody3D.
-- Each MeshInstance3D gets its own hull, so a multi-part prop follows its shape
-  instead of one hull swallowing the gaps between parts. 503 props currently
-  carry 550 hulls at ~29 points each.
-- `create_convex_shape(true, true)` returns points in **mesh** space. The body
-  is always scale 1 while the model keeps the authored scale, so every point is
-  transformed into body space — skip that and each hull comes out at 1/scale of
-  its real size.
-- A mesh that yields fewer than 4 hull points is not a solid; those fall back to
-  the AABB box rather than leaving the prop with no collider.
+- **Each mesh is MULTI-CONVEX decomposed (V-HACD), not reduced to one hull.** A
+  single hull is by definition convex, so it fills in every hollow: a table
+  becomes a solid block from floor to tabletop and the space underneath — which
+  the player should be able to get into and an enemy should path through — stops
+  existing. Decomposition keeps the slab and the legs separate. Hulls are still
+  kept per-mesh on top of that, so a multi-part prop's compound collider follows
+  its parts *and* its concavities. Current bench: **521 props carrying 1804
+  hulls**, 290 of them compound (was 569 single hulls).
+- **Both decomposition settings matter and the defaults are useless.**
+  `MeshConvexDecompositionSettings.max_concavity` defaults to **1.0**, which is
+  fully permissive — the decomposer accepts one hull for any shape and the result
+  is bit-identical to `create_convex_shape()`. Measured on a synthetic table
+  (slab + 4 legs): 1.0 → 1 hull; 0.1 → 4; **0.01 → 6** (slab and legs resolved,
+  hollow preserved); 0.001 → 6 (no gain, just slower). `DECOMPOSE_MAX_CONCAVITY`
+  is 0.01. `max_convex_hulls` measured identical at 8 and 32, so
+  `DECOMPOSE_MAX_HULLS` is 8 — the cheap end of the plateau.
+- **`Mesh.convex_decompose()` is not exposed to GDScript in Godot 4.7.** The only
+  route is `MeshInstance3D.create_multiple_convex_collisions()`, which works by
+  adding a **StaticBody3D child** to the instance it is called on. `_decompose()`
+  therefore runs it against a throwaway clone and harvests the shapes — calling
+  it on the real model node would leave a StaticBody3D full of colliders parented
+  inside every prop in the scene. The shapes are refcounted Resources, so they
+  outlive the clone.
+- Decomposition returns points in **mesh** space, exactly as
+  `create_convex_shape()` did. The body is always scale 1 while the model keeps
+  the authored scale, so every point is transformed into body space — skip that
+  and each hull comes out at 1/scale of its real size.
+- A mesh whose hulls all come back under 4 points is not a solid; that **mesh**
+  falls back to its own tight AABB box, rather than being dropped from the
+  compound collider and leaving a hole in the prop.
+- **Cost, measured on the real bench, in both directions:**
+  - *Conversion* is slow — ~200 ms per prop, ~110 s for all 521. That is a
+    one-off tool cost, not a runtime one.
+  - *Runtime physics did **not** regress*, despite 3.17× the shapes: headless
+    physics time went **3.12 → 2.80 ms/frame mean** and got far more stable
+    (p95 4.45 → 2.91, max 5.66 → 2.91). The props are frozen and asleep, so the
+    extra hulls cost broadphase and memory rather than narrowphase — and the
+    tighter hulls appear to remove spurious contacts that caused the old variance.
+- **`tools/rebuild_prop_colliders.gd`** re-runs the shape builder over props that
+  are **already** converted. `PropConverter.convert_scene()` cannot do this: it
+  skips anything already in the `draggable` group, so re-running it over a
+  converted scene is a no-op. Headless, `--sample=N` to dry-run a projection,
+  `--save` to write. It refuses to save if the scene lost a node (see §5).
 - **The navmesh carve outline is the prop's footprint RECTANGLE, in body space** —
   not a circle, and not an octagon. Both alternatives were measured on the real
   bench and both break, in opposite directions:
@@ -944,7 +978,17 @@ undone, verification that was or was not run. Omit the line if there is nothing.
 - **`global_transform` on a node that was instantiated but never added to the
   tree** errors with `Condition "!is_inside_tree()" is true` and silently
   returns identity. Read `transform` instead when inspecting a scene loaded
-  purely to compare against.
+  purely to compare against. Note a node added to the tree *during*
+  `SceneTree._initialize()` is also not yet inside it — `await process_frame`
+  once before adding anything, or every transform you read is identity.
+- **Instantiating `Main.tscn` in a tool and letting one frame process lets the
+  game's own scripts edit the scene you are about to save.** `WaveSpawner`
+  adopts any hand-placed enemy into `enemies` and `_physics_process` →
+  `clear_enemies()` `queue_free()`s it, so a rebuild tool that awaits a frame and
+  then `pack()`s writes out a `Main.tscn` with the `Enemy` instance **silently
+  missing** — 526 instances become 525 and nothing errors. Do the work and pack
+  in the same frame the scene is added, and assert nothing is
+  `is_queued_for_deletion()` before saving.
 - **`NavigationObstacle3D` carves the navmesh with `vertices`, not `radius`.**
   `radius` only feeds RVO avoidance. With `affect_navigation_mesh = true` but an
   empty `vertices` outline, the bake completes cleanly and produces a mesh with
