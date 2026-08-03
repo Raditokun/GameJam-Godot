@@ -15,6 +15,17 @@ extends Camera3D
 ## `drag_group` that is a physics body can be picked up, so adding the rest of
 ## the clutter later is a matter of tagging it.
 
+## Height below which a prop counts as having fallen off the bench and is freed.
+##
+## The tabletop sits at y ~= 73.6 and the leftover ground geometry is down at
+## y = -0.5, so there is a very wide dead band between "on the bench" and "gone".
+## Measured on the real scene: all 522 props sit between y 72.37 and 79.02, so the
+## lowest one still clears this by 7.37 units. Nothing legitimate is anywhere near
+## it, which is what makes an unconditional queue_free() safe here.
+const DESPAWN_Y_THRESHOLD := 65.0
+## Seconds between fallen-prop sweeps.
+const DESPAWN_SWEEP_INTERVAL := 1.0
+
 ## Group a physics body must be in before this tool will pick it up.
 @export var drag_group := "draggable"
 ## How far the cursor ray reaches into the scene. The bench is enormous from a
@@ -97,6 +108,8 @@ var _was_frozen := false
 ## Released props still coming to rest, mapped to how long they have been still.
 ## Once a prop settles it is frozen again -- see _update_settling().
 var _settling := {}
+## Seconds accumulated toward the next fallen-prop sweep. See _clean_fallen_props().
+var _despawn_timer := 0.0
 
 
 func _ready() -> void:
@@ -108,6 +121,17 @@ func _ready() -> void:
 	# Deferred: the player captures the mouse in its own _ready(), and this has
 	# to be the one that wins regardless of which node readies first.
 	_apply_phase.call_deferred(GameState.phase)
+
+
+func _process(delta: float) -> void:
+	# Swept once a second rather than every frame: this walks all 522 draggables
+	# and nothing falls off the bench quickly enough for a second of latency to be
+	# noticeable. Runs regardless of phase -- a prop flung off during Preparation
+	# and an enemy shoving one over the edge during Action both want cleaning up.
+	_despawn_timer += delta
+	if _despawn_timer >= DESPAWN_SWEEP_INTERVAL:
+		_despawn_timer = 0.0
+		_clean_fallen_props()
 
 
 func _physics_process(delta: float) -> void:
@@ -243,6 +267,34 @@ func _set_avoidance(body: PhysicsBody3D, enabled: bool) -> void:
 ## Watches released props and freezes each one once it stops moving, handing the
 ## bench back to the cheap all-frozen state. Without this every prop the player
 ## ever touched would stay awake for the rest of the round.
+## Frees any prop that has fallen off the bench.
+##
+## The drag tool can fling a prop clean off the table -- that is deliberate and
+## measured -- and an enemy or the player can shove one over the edge. Left alone
+## they pile up on the ground geometry 74 units below, awake or frozen, forever:
+## dead weight in the physics broadphase and in every group scan the minimap, the
+## navmesh baker and this sweep itself perform.
+func _clean_fallen_props() -> void:
+	for node in get_tree().get_nodes_in_group(drag_group):
+		var body := node as RigidBody3D
+		# A queue_free()d node stays in its group until the end of the frame, so
+		# without the deletion guard a prop freed by the previous sweep would be
+		# freed again.
+		if body == null or not body.is_inside_tree() or body.is_queued_for_deletion():
+			continue
+		if body.global_position.y >= DESPAWN_Y_THRESHOLD:
+			continue
+		# Let go first if this is the prop in hand: _drop() restores gravity, the
+		# ray exception and the avoidance flag, and clears _dragged. Freeing it
+		# out from under the drag would leave the tool holding a dead reference.
+		if body == _dragged:
+			_drop()
+		# Stop tracking it for settling too, or _update_settling spends frames
+		# resolving an instance id that no longer exists.
+		_settling.erase(body.get_instance_id())
+		body.queue_free()
+
+
 func _update_settling(delta: float) -> void:
 	if _settling.is_empty():
 		return

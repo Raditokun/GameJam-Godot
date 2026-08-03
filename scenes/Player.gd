@@ -107,6 +107,7 @@ extends CharacterBody3D
 @onready var mesh: MeshInstance3D = $MeshInstance3D
 @onready var stats_label: Label = $HUD/StatsLabel
 @onready var phase_label: Label = $HUD/PhaseLabel
+@onready var you_died_label: Label = $HUD/YouDiedLabel
 # Weapon slots in order: slot 1, slot 2. Reached with $ rather than exported
 # NodePaths because both live inside this scene; node exports only resolve when
 # the .tscn carries a node_paths= marker, which is easy to lose by hand.
@@ -145,6 +146,12 @@ var _stowed_slot := 0
 # Pose the player is returned to when a round resets.
 var _spawn_transform := Transform3D.IDENTITY
 
+## True from the moment an enemy reaches the player until they retry. Gates
+## movement and every input except the two retry keys.
+var is_dead := false
+## Current camera shake amplitude, decaying to zero. Set by die().
+var _shake_intensity := 0.0
+
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -165,10 +172,52 @@ func _ready() -> void:
 	# move them, so every retry starts from the same spot.
 	_spawn_transform = global_transform
 	GameState.phase_changed.connect(_on_phase_changed)
+	# Death state is cleared by the round reset itself, not only by _respawn().
+	# Anything that resets the round -- the G key straight through GameState, a
+	# future breached-defence trigger -- has to clear the death screen too, or the
+	# player ends up alive and mobile behind a "YOU DIED" overlay.
+	GameState.round_reset.connect(_on_round_reset)
 	# Start on slot 1. This also drives the initial visibility of both weapons,
 	# overriding whatever `visible` the scene was saved with.
 	equip(0)
 	_on_phase_changed(GameState.phase)
+	if you_died_label != null:
+		you_died_label.visible = false
+
+
+## Called by an enemy that has reached the player. Idempotent -- a whole swarm
+## arriving on the same frame kills once.
+func die() -> void:
+	if is_dead:
+		return
+	is_dead = true
+	_shake_intensity = 0.8
+	if you_died_label != null:
+		you_died_label.visible = true
+	# A prop still riding the carry spring would keep being steered by a corpse.
+	drop_prop()
+
+
+## Clears the death screen and bounces the round back to Preparation, with the
+## maze left exactly as it was -- that is the whole point of the retry loop.
+func _respawn() -> void:
+	_clear_death()
+	GameState.reset_round()
+
+
+## Cleanup shared by _respawn() and the round_reset signal.
+func _clear_death() -> void:
+	is_dead = false
+	_shake_intensity = 0.0
+	if camera != null:
+		camera.h_offset = 0.0
+		camera.v_offset = 0.0
+	if you_died_label != null:
+		you_died_label.visible = false
+
+
+func _on_round_reset() -> void:
+	_clear_death()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -183,6 +232,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		var limit := deg_to_rad(pitch_limit_deg)
 		_pitch = clampf(_pitch - event.relative.y * look, -limit, limit)
 		head.rotation.x = _pitch
+
+	# Death outranks everything below. Checked BEFORE the phase gate: a reset
+	# triggered elsewhere can flip the phase to PREPARATION on the same press, and
+	# the retry keys would then fall through the early return and do nothing.
+	# The `return` is what stops a corpse shooting, reloading or grabbing props.
+	if is_dead:
+		if event.is_action_pressed("lock_in") or event.is_action_pressed("restart_round"):
+			_respawn()
+			# Consumed so GameState does not act on the same press. `restart_round`
+			# during ACTION is its own reset key, so without this one G would run
+			# reset_round() twice and double-count the attempt.
+			get_viewport().set_input_as_handled()
+		return
 
 	# Looking around stays live in every phase, but weapons and prop-carrying do
 	# not exist while building: the click, the wheel and the reach are all on
@@ -224,6 +286,18 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if is_dead:
+		# Frozen in place, but still driven: gravity and move_and_slide keep the
+		# body settled on the bench instead of hanging wherever it was standing.
+		velocity.x = 0.0
+		velocity.z = 0.0
+		if is_on_floor():
+			velocity.y = 0.0
+		else:
+			velocity.y -= gravity * delta
+		move_and_slide()
+		return
+
 	_update_crouch(delta)
 
 	var grounded := is_on_floor()
@@ -276,10 +350,32 @@ func _physics_process(delta: float) -> void:
 	_update_carry(delta)
 
 
+## Jitters the camera by shrinking amounts until the shake runs out.
+##
+## Driven from _process, not _physics_process: this is purely visual, and at a
+## 60 Hz physics tick a shake sampled per physics frame reads as a judder rather
+## than a rattle on a high-refresh display. Uses the camera's h/v offsets rather
+## than its transform so it composes with the head's pitch instead of fighting
+## the look controls for the same property.
+func _update_camera_shake(delta: float) -> void:
+	if camera == null:
+		return
+	if _shake_intensity <= 0.0:
+		camera.h_offset = 0.0
+		camera.v_offset = 0.0
+		return
+	camera.h_offset = randf_range(-1.0, 1.0) * _shake_intensity * 0.4
+	camera.v_offset = randf_range(-1.0, 1.0) * _shake_intensity * 0.4
+	# Decays over ~0.4 s from the 0.8 die() sets, so the hit lands hard and is
+	# gone well before the player reaches for the retry key.
+	_shake_intensity = maxf(_shake_intensity - delta * 2.0, 0.0)
+
+
 ## Refreshes the bottom-left stats readout each rendered frame. Velocity is the
 ## horizontal (XZ) speed in Source units -- that's the number bunny-hoppers
 ## watch, since vertical speed contributes nothing to strafe gain.
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_update_camera_shake(delta)
 	_update_phase_label()
 	var pos := global_position
 	stats_label.text = (

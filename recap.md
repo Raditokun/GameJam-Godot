@@ -6,6 +6,143 @@ the top.** Append-only; see `CLAUDE.md` §4 for the format and the rules.
 `CLAUDE.md` describes the project as it is now. This file records how it got
 there — including the dead ends.
 
+## 2026-08-03 23:21 — Death trigger, camera shake, YOU DIED retry screen
+
+The die-and-retry loop finally has a "die". This closes the gap flagged at the
+very start of this session: enemies could chase but never hurt anyone.
+
+**Changed:**
+- `scenes/Player.tscn` — new `HUD/YouDiedLabel`, centred (anchors preset 8),
+  offsets ±300/±100, 42 px red text with an 8 px black outline, hidden at boot.
+- `scenes/Player.gd` — new `you_died_label` `@onready` (`camera` already
+  existed), `is_dead`, `_shake_intensity`; new `die()`, `_respawn()`,
+  `_clear_death()`, `_on_round_reset()`, `_update_camera_shake()`.
+  `_physics_process` freezes horizontal movement while dead; `_unhandled_input`
+  gains a death branch; `_ready` connects `GameState.round_reset`.
+- `scenes/Enemy.gd` — new `KILL_DISTANCE` (1.15) and `_check_contact_kill()`,
+  called from `_physics_process` right after `_update_aggro`.
+- `CLAUDE.md` — new "Death & Retry" subsection under `Player.tscn`, HUD tree
+  line, controls table (F and G now double as retry), §2d contact-kill note.
+
+**Notes:**
+
+**Three placement decisions that are not arbitrary:**
+1. The death branch in `_unhandled_input` sits **before** the
+   `GameState.is_preparation()` early return. A reset triggered elsewhere can
+   flip the phase on the same press, and the retry keys would then fall through
+   that return and silently do nothing.
+2. The press is **consumed** with `set_input_as_handled()`. `restart_round` (G)
+   is also GameState's own reset key during ACTION, so without this one G press
+   would run `reset_round()` twice and double-count `attempt`. F is safe either
+   way (GameState only acts on it during PREPARATION) but both are consumed for
+   consistency. Verified `attempt` increments by exactly 1.
+3. Camera shake runs in `_process`, not `_physics_process` — it is purely visual,
+   and sampling at the 60 Hz physics tick reads as judder rather than rattle. It
+   writes `camera.h_offset`/`v_offset` rather than the transform, so it composes
+   with head pitch instead of fighting the look controls for the same property.
+
+Added beyond the spec: `_clear_death()` as shared cleanup, and connecting it to
+`round_reset` (the spec asked for the connection; this is the shape of it). It
+also zeroes the camera offsets, which `_respawn()` alone would have left wherever
+the last shake frame put them if the reset landed mid-shake.
+
+**Mouse look deliberately still works while dead** — the mouse-motion block sits
+above the death check, so the player can look around at whatever killed them.
+Everything else (fire, reload, interact, weapon slots) is dead.
+
+Contact kill is gated on `State.CHASE`, not proximity alone. A patroller brushing
+past has not caught anyone, and killing on proximity would make the hidden-rule
+routes lethal to *stand near* rather than lethal to be *seen by* — the opposite
+of the intended mechanic.
+
+**Verification:** headless probe (since deleted) on the live scene. Label geometry,
+text, alignment, 42 px font, 8 px outline and colour all confirmed, hidden at boot,
+and `you_died_label` resolves. `die()` sets the flag, shows the label and sets
+shake 0.8; a second `die()` does **not** re-trigger the shake (idempotent).
+Horizontal speed is 0.000 while dead despite being set to 15 u/s beforehand.
+Camera offsets move (peak 0.319) then decay to exactly 0 with both offsets zeroed.
+`_respawn()` from ACTION clears the flag and label, returns to PREPARATION and
+increments `attempt` **once** (1 → 2). `reset_round()` on its own — without
+`_respawn()` — also clears the death state. Contact kill: PATROL at 0.5 does not
+kill, CHASE at 3.0 does not kill, CHASE at 0.9 does.
+
+**A probe gotcha worth recording:** the first run died during PREPARATION, where
+`GameState.reset_round()` early-returns, so `attempt` never moved and the test
+failed. Not a code bug — contact kill is gated on `is_action_phase`, so death can
+only happen in ACTION. Any future test of the retry path must `start_action()`
+first.
+
+**Not verified in play.** No windowed run, so how the shake actually feels, and
+whether 42 px at ±300 px reads well at the real resolution, are unchecked. Also
+unverified: whether an enemy reliably closes to 1.15 in a real chase — the probe
+teleported it. Given the direct-pursuit change at 21:51 and RVO clamping, worth
+watching that enemies actually make contact rather than hovering just outside.
+
+## 2026-08-03 23:07 — Despawn props and enemies that fall off the bench
+
+**Changed:**
+- `scenes/PrepCamera.gd` — new consts `DESPAWN_Y_THRESHOLD` (65.0) and
+  `DESPAWN_SWEEP_INTERVAL` (1.0), new `_despawn_timer`, new `_process()` that
+  throttles the sweep to once a second, and new `_clean_fallen_props()`.
+- `scenes/Enemy.gd` — new `DESPAWN_Y_THRESHOLD` (65.0); `_physics_process()`
+  frees the enemy and returns if it is below that, checked before anything else.
+- `CLAUDE.md` — §2b documents the prop sweep, §2d the enemy check.
+
+**Notes:**
+
+**I checked the threshold against the real scene before enabling it**, since this
+deletes props unconditionally and a bad number would quietly eat the maze. All
+522 props sit between y **72.37 and 79.02**, the tabletop is at ~73.6, and the
+leftover ground geometry is at −0.5. The lowest prop clears 65.0 by 7.37 units,
+so the dead band is wide and nothing legitimate is near it. Player was at 73.06
+and the enemy at 73.20.
+
+Three ordering details in `_clean_fallen_props()` that are not in the spec but
+matter:
+- If the fallen prop is the one **in hand**, `_drop()` runs first — it restores
+  gravity, removes the ray exception, turns avoidance back off and clears
+  `_dragged`. Freeing it out from under the drag would leave the tool holding a
+  dead reference. (The spec did have this one.)
+- Its `_settling` entry is erased too, or `_update_settling()` spends frames
+  resolving an instance id that no longer exists.
+- The `is_queued_for_deletion()` guard is load-bearing, not defensive: a freed
+  node stays in its group until the end of the frame, so the next sweep would
+  free it a second time.
+
+The enemy check sits **above** the phase gate in `_physics_process`, so it fires
+during PREPARATION as well as ACTION. Tested both.
+
+`PrepCamera` had no `_process` before this — everything lived in
+`_physics_process`. Added one as specced; the sweep does not need physics timing.
+
+**Verification:** headless probe (since deleted) against the live 522-prop scene.
+A sweep with nothing fallen deletes nothing (522 → 522). Three props moved to
+y=10 → 519, all three confirmed freed. A second sweep does not double-free. A
+prop dropped while held clears `_dragged` and its settling entry. A fresh enemy
+survives on the bench, is freed when moved to y=20 with `is_action_phase` true,
+and is also freed with `is_action_phase` false.
+
+**A probe bug worth recording** since it will bite anyone testing against
+Main.tscn: my first attempt reached for the scene's hand-placed
+`Navigation/Enemy` and got null, because `WaveSpawner._physics_process()` →
+`clear_enemies()` had already freed it during the startup PREPARATION frame —
+the same behaviour that ate the Enemy during the 22:31 scene rebuild. The null
+deref aborted `_initialize()` before `quit()`, so the SceneTree ran forever and
+the run had to be killed. Test enemy behaviour with a **freshly instantiated**
+Enemy, not the one in the scene.
+
+**Not verified in play.** No windowed run: whether one second of latency reads
+well (a prop visibly resting in mid-air below the table for up to a second before
+vanishing) is unchecked. If it looks wrong, lower `DESPAWN_SWEEP_INTERVAL` — the
+sweep is cheap, it is one group scan.
+
+Also unaddressed, and worth deciding on: **props are freed permanently, but
+`GameState.reset_round()` deliberately does not restore the layout** (keeping the
+maze is the point of the retry loop). So a prop knocked off the bench is gone for
+the rest of the session, and the player cannot rebuild that part of their maze.
+That may be the intended consequence — it makes the edge a real hazard — but it
+is a design call nobody has made explicitly.
+
 ## 2026-08-03 22:44 — Minimap performance: throttled redraw + fast shape bounds
 
 **Changed:**

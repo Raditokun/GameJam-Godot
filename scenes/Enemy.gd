@@ -34,6 +34,18 @@ enum State {
 ## it is already in contact anyway.
 const MIN_CHARGE_OFFSET := 0.2
 
+## Height below which this enemy counts as having fallen off the bench and frees
+## itself. The tabletop is at y ~= 73.6 and the leftover ground geometry is at
+## y = -0.5, so anything under this is in free fall to somewhere it can never
+## walk back from. Matches PrepCamera's threshold for the props.
+const DESPAWN_Y_THRESHOLD := 65.0
+
+## Separation at which a chasing enemy is touching the player and kills them.
+## Both capsules have radius 0.4, so they physically stop at ~0.8 apart and can
+## never close further -- 1.15 fires reliably on contact with a little slack for
+## the tilted bench, without reaching through a gap the player is safely behind.
+const KILL_DISTANCE := 1.15
+
 ## How hard a feeler hit steers the enemy sideways, as a fraction of its speed.
 ## The deflection is added to the desired direction and renormalised, so this is
 ## a blend weight, not an absolute: 0.75 bends the path around a corner without
@@ -199,6 +211,14 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# Off the bench and falling. Checked before anything else and in every phase:
+	# a body down here can never path back onto the table, so it would otherwise
+	# fall forever, counting against max_live_enemies and being drawn on the radar
+	# from somewhere the player cannot reach.
+	if global_position.y < DESPAWN_Y_THRESHOLD:
+		queue_free()
+		return
+
 	if is_on_floor():
 		velocity.y = 0.0
 	else:
@@ -220,6 +240,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	_update_aggro(delta)
+	_check_contact_kill()
 	_advance_patrol(delta)
 	_update_target(delta)
 
@@ -250,6 +271,22 @@ func _physics_process(delta: float) -> void:
 		agent.velocity = desired
 	else:
 		_drive(desired, delta)
+
+
+## Kills the player if this enemy has physically reached them.
+##
+## Gated on CHASE: a patroller that happens to brush past on its way somewhere
+## else has not caught anyone, and killing on proximity alone would make the
+## hidden-rule routes lethal to stand near rather than lethal to be SEEN by --
+## which is the opposite of the mechanic. Player.die() is idempotent, so a whole
+## swarm arriving together still only kills once.
+func _check_contact_kill() -> void:
+	if state != State.CHASE or _player == null or not is_instance_valid(_player):
+		return
+	if global_position.distance_to(_player.global_position) >= KILL_DISTANCE:
+		return
+	if _player.has_method("die"):
+		_player.die()
 
 
 ## Drives straight at the player, off-path, for effectively the whole chase.

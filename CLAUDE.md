@@ -177,6 +177,24 @@ tactical view of the bench, plus the mouse drag-and-drop tool that goes with it.
   still finishes and freezes itself.
 - **Grabbing also switches that prop's RVO avoidance on, and release switches it
   off** — see the cost measurement in §2e.
+- **Fallen props are despawned.** `_clean_fallen_props()` runs from `_process`
+  once every `DESPAWN_SWEEP_INTERVAL` (1 s) and frees any `draggable` body below
+  `DESPAWN_Y_THRESHOLD` (65.0). The drag tool can fling a prop clean off the
+  table — deliberate, and measured — and the player or an enemy can shove one
+  over the edge; left alone they pile up on the ground geometry 74 units below
+  and stay dead weight in the broadphase and in every group scan the minimap, the
+  navmesh baker and this sweep itself perform.
+  - The threshold is safe by a wide margin, measured on the real scene: the
+    tabletop is at y ≈ 73.6, all 522 props sit between **72.37 and 79.02**, and
+    the leftover ground geometry is at y = −0.5. The lowest prop clears the
+    threshold by 7.37 units, so nothing legitimate is anywhere near it.
+  - Order matters in the sweep: if the fallen prop is the one **in hand** it is
+    `_drop()`ped first (restoring gravity, the ray exception and the avoidance
+    flag, and clearing `_dragged`), and its `_settling` entry is erased, before
+    `queue_free()`. Skipping either leaves the tool holding a dead reference or
+    `_update_settling` resolving a freed instance id.
+  - Guarded with `is_queued_for_deletion()` — a freed node stays in its group
+    until the end of the frame, so the next sweep would otherwise free it twice.
 - Other tunables: `drag_group`, `pick_distance` (900), `refreeze_speed`,
   `refreeze_delay`.
 
@@ -196,12 +214,55 @@ Player (CharacterBody3D)
     ├── PhaseLabel     -- current phase, attempt number and that phase's keys
     ├── GunBar         -- ProgressBar, Stasis Cannon charge; hidden when sword equipped
     ├── Crosshair      -- drawn Control (Crosshair.gd), auto-hides when mouse not captured
-    └── Minimap        -- drawn Control (Minimap.gd), top-left tactical radar
+    ├── Minimap        -- drawn Control (Minimap.gd), top-left tactical radar
+    └── YouDiedLabel   -- centred "YOU DIED" retry prompt, hidden unless dead
 └── SettingsMenu       (instance of SettingsMenu.tscn) -- Esc pause/settings overlay
 ```
 
 (`SettingsMenu` is a child of the Player root, **not** of `HUD` — it brings its
 own CanvasLayer.)
+
+### Death & Retry
+
+The "die" half of the die-and-retry loop, which until now had no trigger at all.
+
+- **`Enemy._check_contact_kill()`** calls `Player.die()` when a **chasing** enemy
+  gets within `KILL_DISTANCE` (1.15) of the player. Both capsules are radius 0.4
+  so they physically stop ~0.8 apart and can never close further; 1.15 fires
+  reliably on contact with slack for the tilted bench. Routed through
+  `has_method("die")`, so the enemy never depends on the player's concrete type.
+- **Gated on CHASE, not proximity.** A patroller brushing past on its way
+  somewhere else has not caught anyone. Killing on proximity alone would make the
+  hidden-rule routes lethal to *stand near* rather than lethal to be *seen by* —
+  the opposite of the mechanic.
+- **`Player.die()`** is idempotent (`if is_dead: return`), so a whole swarm
+  arriving on the same frame kills once and does not re-trigger the shake. It
+  sets `_shake_intensity` to 0.8, shows `HUD/YouDiedLabel`, and drops any carried
+  prop — a prop still on the carry spring would otherwise keep being steered by a
+  corpse.
+- **While dead**, `_physics_process` zeroes horizontal velocity and returns early
+  (gravity and `move_and_slide()` still run so the body stays settled), and
+  `_unhandled_input` returns after the death block so a corpse cannot shoot,
+  reload or grab props. **Mouse look deliberately still works** — that block sits
+  above the death check, so the player can look around at what killed them.
+- **Camera shake** runs in `_process`, not `_physics_process`: it is purely
+  visual, and sampling it at the 60 Hz physics tick reads as a judder rather than
+  a rattle. It writes the camera's `h_offset`/`v_offset` rather than its
+  transform, so it composes with the head's pitch instead of fighting the look
+  controls for the same property. Decays at `delta * 2.0`, so ~0.4 s from 0.8.
+- **Retry on F or G.** The death branch sits **before** the
+  `GameState.is_preparation()` early return, because a reset triggered elsewhere
+  can flip the phase on the same press and the retry keys would then fall through
+  and do nothing. The press is **consumed** with `set_input_as_handled()`:
+  `restart_round` (G) is also GameState's own reset key during ACTION, and
+  letting both fire would run `reset_round()` twice and double-count `attempt`.
+- **`round_reset` is connected as well as `_respawn()` calling it.** Anything
+  that resets the round — G straight through GameState, a future breached-defence
+  trigger — must clear the death screen, or the player ends up alive and mobile
+  behind a "YOU DIED" overlay. `_clear_death()` is the shared cleanup.
+- Note `GameState.reset_round()` early-returns if already in PREPARATION, so
+  dying there would not reset anything. That never happens in practice: contact
+  kill is gated on the enemy's `is_action_phase`.
 
 **`scenes/Minimap.gd`** — the top-left radar, a 160 × 160 `Control` at
 `HUD/Minimap`, offset (20, 20). Everything is painted in `_draw()` (with
@@ -509,6 +570,17 @@ and one that does not still escalates to abandoning the waypoint.
 which are on layer 1. A dense swarm will therefore corner-slide off its own
 members. That may read as natural crowd flow or as jitter — give the feelers a
 dedicated mask if it looks wrong.
+
+**Contact kill.** `_check_contact_kill()` runs each physics frame and calls
+`Player.die()` once a **chasing** enemy is within `KILL_DISTANCE` (1.15). See
+"Death & Retry" under `Player.tscn` for the whole loop.
+
+**Falling off the bench.** The first thing `_physics_process` does is free the
+enemy if it is below `DESPAWN_Y_THRESHOLD` (65.0, matching `PrepCamera`'s
+threshold for props). It sits **above the phase gate deliberately** — an enemy
+knocked off during either phase can never path back onto the table, so left alone
+it falls forever while still counting against `max_live_enemies` and still being
+painted on the radar from somewhere the player cannot reach.
 
 **Stasis (`apply_slow`).** `apply_slow(factor, duration)` scales the enemy to
 `factor` of its speed for `duration` seconds; `_current_speed()` applies it, so it
@@ -895,8 +967,8 @@ build tool, in ACTION they drive the weapons.
 
 | Action | Input | Notes |
 |---|---|---|
-| `lock_in` | F | Preparation → Action. Locks the layout in |
-| `restart_round` | G | Action → Preparation. Keeps the layout, resets the player and the enemy |
+| `lock_in` | F | Preparation → Action. Locks the layout in. **While dead: retry** |
+| `restart_round` | G | Action → Preparation. Keeps the layout, resets the player and the enemy. **While dead: retry** (the press is consumed so the reset runs once) |
 | `toggle_action_phase` | Enter | Flips whichever phase is current — test shortcut |
 | `move_forward` / `move_back` | W / S | |
 | `move_left` / `move_right` | A / D | |
