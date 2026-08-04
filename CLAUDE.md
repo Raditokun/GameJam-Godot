@@ -987,6 +987,8 @@ shared material still reads its authored (0.96, 0.60, 0.16).
 The game supports 3 difficulty tiers selected from the Main Menu (`DifficultyPanel` in `scenes/main_menu.tscn`):
 
 - **`EASY`**:
+  - `CoinSpawner`: `coin_count = 5` (reduced from 10; collecting 5 coins triggers the Archmage duel).
+  - `Minimap`: `_draw_coins()` renders glowing gold dots (`COIN_COLOR = Color(1.0, 0.85, 0.1, 0.95)`, `COIN_DOT_RADIUS = 4.0`) for active coins on the radar disc.
   - `WaveSpawner`: `first_wave_size = 3`, `max_live_enemies = 25`, `wave_interval = 55.0`
   - `Enemy`: `move_speed = 6.5`, `chase_speed_scale = 1.2`
   - `Pistol`: `cooldown_time = 18.0`, `slow_duration = 6.5`
@@ -995,8 +997,10 @@ The game supports 3 difficulty tiers selected from the Main Menu (`DifficultyPan
   - Standard gameplay tuning: wave 1 size 5, max live 35, 45s interval; enemy speed 8.0, chase 1.35; cannon cooldown 25.0s, slow duration 5.0s; boss health 500.0.
 - **`HARD` (Pitch-Dark Flashlight Mode)**:
   - Combat parameters match MEDIUM baseline.
-  - Lighting: Environment `ambient_light_energy` is crushed to `0.02` and `DirectionalLight3D.light_energy` drops to `0.03` (near pitch-black).
-  - Flashlight: `Head/Camera3D/Flashlight` (`SpotLight3D`, `spot_range = 35.0`, `spot_angle = 32.0`, `light_energy = 4.0`) is enabled (`visible = true`), requiring the player to navigate and identify threats in narrow cone beam light.
+  - Lighting & Environment: `DirectionalLight3D.visible = false`; `WorldEnvironment.environment.background_mode = Environment.BG_COLOR`, `background_color = Color(0.005, 0.005, 0.015, 1.0)`, `ambient_light_source = Environment.AMBIENT_SOURCE_COLOR`, `ambient_light_color = Color(0.01, 0.01, 0.02, 1.0)`, `ambient_light_energy = 0.02` (pitch-black color mode).
+- **Full Map Overlay (`Tab` Key / `is_full_map`)**:
+  - Toggling `Tab` switches `Minimap.gd` between top-left tactical radar and full-screen tactical map overlay (`_active_pixel_radius = 260.0`, `_active_radius_meters = 110.0`, screen center position, `Color(0, 0, 0, 0.5)` backdrop).
+  - **Contact Filtering Rules**: On `EASY`, full map draws props, self marker, enemies, and coins. On `MEDIUM` and `HARD`, full map displays layout props and self marker only (`_draw_enemies()` and `_draw_coins()` are omitted).
 
 ### 2f. Wave Spawning (`scenes/WaveSpawner.gd`)
 

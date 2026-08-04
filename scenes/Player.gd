@@ -209,22 +209,34 @@ func _ready() -> void:
 
 
 ## Applies the HARD-mode pitch-dark environment. On HARD the DirectionalLight
-## drops to near-zero and the ambient is crushed, leaving only the player's
-## SpotLight3D ("Flashlight") to see by. On EASY/MEDIUM the flashlight is off
-## and lighting stays at its authored values.
+## is disabled, background mode switches to pitch-black color, and ambient light
+## is set to dark color mode, leaving only the player's SpotLight3D ("Flashlight").
+## On EASY/MEDIUM, daylight and procedural sky are restored and flashlight is off.
 func _apply_difficulty_lighting() -> void:
 	var flashlight := get_node_or_null("Head/Camera3D/Flashlight") as Light3D
+	var dir_light := get_tree().current_scene.find_child("DirectionalLight3D", true, false) as DirectionalLight3D
+	var world_env := get_tree().current_scene.find_child("WorldEnvironment", true, false) as WorldEnvironment
+
 	if GameSettings.difficulty == GameSettings.Difficulty.HARD:
+		if dir_light != null:
+			dir_light.visible = false
+		if world_env != null and world_env.environment != null:
+			var env := world_env.environment
+			env.background_mode = Environment.BG_COLOR
+			env.background_color = Color(0.005, 0.005, 0.015, 1.0)
+			env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+			env.ambient_light_color = Color(0.01, 0.01, 0.02, 1.0)
+			env.ambient_light_energy = 0.02
 		if flashlight != null:
 			flashlight.visible = true
-		# Dim the sun and the ambient to near-black.
-		var dir_light := get_tree().current_scene.find_child("DirectionalLight3D", true, false) as DirectionalLight3D
-		if dir_light != null:
-			dir_light.light_energy = 0.03
-		var world_env := get_tree().current_scene.find_child("WorldEnvironment", true, false) as WorldEnvironment
-		if world_env != null and world_env.environment != null:
-			world_env.environment.ambient_light_energy = 0.02
 	else:
+		if dir_light != null:
+			dir_light.visible = true
+			dir_light.light_energy = 1.0
+		if world_env != null and world_env.environment != null:
+			var env := world_env.environment
+			env.background_mode = Environment.BG_SKY
+			env.ambient_light_source = Environment.AMBIENT_SOURCE_BG
 		if flashlight != null:
 			flashlight.visible = false
 

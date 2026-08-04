@@ -5,6 +5,36 @@ the top.** Append-only; see `CLAUDE.md` §4 for the format and the rules.
 
 `CLAUDE.md` describes the project as it is now. This file records how it got
 there — including the dead ends.
+## 2026-08-04 17:34 — Tab key Full Map overlay and difficulty-based contact filtering
+
+**Changed:**
+- `scenes/Minimap.gd` — Added `is_full_map` boolean state, `_unhandled_input()` Tab key toggle, dynamic center/radius calculations (`_active_center`, `_active_pixel_radius = 260.0`, `_active_radius_meters = 110.0`), dark screen backdrop overlay (`Color(0, 0, 0, 0.5)`), and difficulty contact filtering (EASY shows enemies and coins on full map; MEDIUM and HARD hide enemies and coins on full map).
+- `CLAUDE.md` — Updated §2j documenting Full Map overlay mechanics and contact filtering rules.
+
+**Notes:**
+- On MEDIUM/HARD difficulties, opening the Tab Full Map overlay provides tactical overview of the maze layout and player position without revealing enemy positions or coin locations.
+
+## 2026-08-04 17:29 — 5-coin target and minimap coin tracking for EASY mode
+
+**Changed:**
+- `scenes/CoinSpawner.gd` — `_ready()` sets `coin_count = 5` when `GameSettings.difficulty == EASY` (and `10` otherwise).
+- `scenes/Minimap.gd` — Added `coin_group` export, `COIN_COLOR` (glowing gold) and `COIN_DOT_RADIUS` (4.0) constants, and `_draw_coins()` method called in `_draw()` on `EASY` mode to plot active coin positions on the radar disc.
+- `CLAUDE.md` — Updated §2j documenting EASY mode 5-coin target and minimap coin tracking.
+
+**Notes:**
+- On EASY difficulty, requiring only 5 coins provides a quicker route to the Archmage duel, and rendering coin locations as gold dots on the tactical minimap allows easier navigation toward the win condition.
+
+## 2026-08-04 17:16 — HARD mode WorldEnvironment BG_COLOR pitch-black darkness fix
+
+**Changed:**
+- `scenes/Player.gd` — Updated `_apply_difficulty_lighting()`:
+  - HARD: `dir_light.visible = false`; `world_env.environment.background_mode = Environment.BG_COLOR`, `background_color = Color(0.005, 0.005, 0.015, 1.0)`, `ambient_light_source = Environment.AMBIENT_SOURCE_COLOR`, `ambient_light_color = Color(0.01, 0.01, 0.02, 1.0)`, `ambient_light_energy = 0.02`, `flashlight.visible = true`.
+  - EASY / MEDIUM: `dir_light.visible = true`, `dir_light.light_energy = 1.0`; `world_env.environment.background_mode = Environment.BG_SKY`, `ambient_light_source = Environment.AMBIENT_SOURCE_BG`, `flashlight.visible = false`.
+- `CLAUDE.md` — Updated §2j to reflect WorldEnvironment `BG_COLOR` pitch-black mode settings.
+
+**Notes:**
+- Replacing sky environment mode with `BG_COLOR` and setting `ambient_light_source` to `AMBIENT_SOURCE_COLOR` completely eliminates background sky dome ambient scattering in HARD mode, producing a pitch-black atmosphere illuminated purely by the Flashlight cone.
+
 ## 2026-08-04 17:08 — Difficulty Selection UI, GameSettings state, and HARD Pitch-Dark Flashlight mode
 
 **Changed:**

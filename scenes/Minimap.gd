@@ -30,6 +30,7 @@ extends Control
 ## The bench clutter. Same group the drag tool and the navmesh baker read.
 @export var prop_group := "draggable"
 @export var player_group := "player"
+@export var coin_group := "coins"
 
 @export_group("Behaviour")
 ## Rotate the radar so the player's facing is always up. Turn this off for a
@@ -49,6 +50,8 @@ const GRID_COLOR := Color(0.2, 0.85, 0.5, 0.18)
 const PROP_COLOR := Color(0.45, 0.55, 0.65, 0.6)
 const ENEMY_COLOR := Color(1.0, 0.2, 0.2, 0.9)
 const ENEMY_DOT_RADIUS := 4.0
+const COIN_COLOR := Color(1.0, 0.85, 0.1, 0.95)
+const COIN_DOT_RADIUS := 4.0
 const SELF_COLOR := Color(0.3, 1.0, 0.75, 1.0)
 const SELF_MARKER_SIZE := 7.0
 
@@ -58,12 +61,24 @@ const DEFAULT_PROP_SIZE := Vector2(2.0, 2.0)
 ## Seconds between redraws. 0.05 = 20 Hz.
 const REDRAW_INTERVAL := 0.05
 
+var is_full_map := false
+
 var _player: Node3D = null
 ## Prop footprint half-extents, keyed by instance id. See _measure_prop() for why
 ## this is cached rather than measured per frame.
 var _extent_cache: Dictionary = {}
 ## Seconds accumulated toward the next redraw. See REDRAW_INTERVAL.
 var _redraw_timer := 0.0
+
+var _active_center := Vector2(80, 80)
+var _active_pixel_radius := 70.0
+var _active_radius_meters := 30.0
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if (event is InputEventKey and event.keycode == KEY_TAB and event.is_pressed() and not event.is_echo()) or event.is_action_pressed("toggle_map"):
+		is_full_map = not is_full_map
+		queue_redraw()
 
 
 func _process(delta: float) -> void:
@@ -81,8 +96,6 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	_draw_backdrop()
-
 	var player := _resolve_player()
 	if player == null:
 		# No player yet (or between scenes): show an empty scope rather than
@@ -96,29 +109,47 @@ func _draw() -> void:
 	var cos_y := cos(yaw)
 	var sin_y := sin(yaw)
 
-	_draw_props(origin, yaw, cos_y, sin_y)
-	_draw_enemies(origin, cos_y, sin_y)
-	_draw_self_marker()
+	if is_full_map:
+		_active_center = get_viewport_rect().size * 0.5 - global_position
+		_active_pixel_radius = 260.0
+		_active_radius_meters = 110.0
+		draw_rect(Rect2(-global_position, get_viewport_rect().size), Color(0.0, 0.0, 0.0, 0.5))
+		_draw_backdrop()
+		_draw_props(origin, yaw, cos_y, sin_y)
+		if GameSettings.difficulty == GameSettings.Difficulty.EASY:
+			_draw_enemies(origin, cos_y, sin_y)
+			_draw_coins(origin, cos_y, sin_y)
+		_draw_self_marker()
+	else:
+		_active_center = CENTER
+		_active_pixel_radius = radar_pixel_radius
+		_active_radius_meters = radar_radius_meters
+		_draw_backdrop()
+		_draw_props(origin, yaw, cos_y, sin_y)
+		_draw_enemies(origin, cos_y, sin_y)
+		if GameSettings.difficulty == GameSettings.Difficulty.EASY:
+			_draw_coins(origin, cos_y, sin_y)
+		_draw_self_marker()
 
 
 ## Disc, scale rings and crosshair. Drawn back to front so the border sits on top
 ## of the grid lines that run out to meet it.
 func _draw_backdrop() -> void:
-	draw_circle(CENTER, radar_pixel_radius, BACKGROUND_COLOR)
+	draw_circle(_active_center, _active_pixel_radius, BACKGROUND_COLOR)
 	draw_line(
-		CENTER - Vector2(radar_pixel_radius, 0.0),
-		CENTER + Vector2(radar_pixel_radius, 0.0),
+		_active_center - Vector2(_active_pixel_radius, 0.0),
+		_active_center + Vector2(_active_pixel_radius, 0.0),
 		GRID_COLOR,
 		1.0
 	)
 	draw_line(
-		CENTER - Vector2(0.0, radar_pixel_radius),
-		CENTER + Vector2(0.0, radar_pixel_radius),
+		_active_center - Vector2(0.0, _active_pixel_radius),
+		_active_center + Vector2(0.0, _active_pixel_radius),
 		GRID_COLOR,
 		1.0
 	)
-	draw_arc(CENTER, radar_pixel_radius * 0.5, 0.0, TAU, 48, GRID_COLOR, 1.0)
-	draw_arc(CENTER, radar_pixel_radius, 0.0, TAU, 64, BORDER_COLOR, BORDER_WIDTH)
+	draw_arc(_active_center, _active_pixel_radius * 0.5, 0.0, TAU, 48, GRID_COLOR, 1.0)
+	draw_arc(_active_center, _active_pixel_radius, 0.0, TAU, 64, BORDER_COLOR, BORDER_WIDTH)
 
 
 ## The maze, as rotated rectangles. Props are the whole point of the radar -- the
@@ -126,7 +157,7 @@ func _draw_backdrop() -> void:
 ## drawn to their real footprint and angle rather than as dots.
 func _draw_props(origin: Vector3, yaw: float, cos_y: float, sin_y: float) -> void:
 	var ppm := _pixels_per_meter()
-	var range_squared := radar_radius_meters * radar_radius_meters
+	var range_squared := _active_radius_meters * _active_radius_meters
 
 	for node: Node in get_tree().get_nodes_in_group(prop_group):
 		var prop := node as Node3D
@@ -171,9 +202,21 @@ func _draw_enemies(origin: Vector3, cos_y: float, sin_y: float) -> void:
 		# Clip against the disc, not the control's rectangle -- a contact just
 		# outside the ring would otherwise appear in the corners of the square.
 		# Inset by the dot radius so dots never straddle the border.
-		if point.distance_to(CENTER) > radar_pixel_radius - ENEMY_DOT_RADIUS:
+		if point.distance_to(_active_center) > _active_pixel_radius - ENEMY_DOT_RADIUS:
 			continue
 		draw_circle(point, ENEMY_DOT_RADIUS, ENEMY_COLOR)
+
+
+func _draw_coins(origin: Vector3, cos_y: float, sin_y: float) -> void:
+	for node: Node in get_tree().get_nodes_in_group(coin_group):
+		var coin := node as Node3D
+		if coin == null or not coin.is_inside_tree() or coin.is_queued_for_deletion():
+			continue
+
+		var point := _to_radar(coin.global_position, origin, cos_y, sin_y)
+		if point.distance_to(_active_center) > _active_pixel_radius - COIN_DOT_RADIUS:
+			continue
+		draw_circle(point, COIN_DOT_RADIUS, COIN_COLOR)
 
 
 ## The player, always dead centre and always pointing up: with rotate_with_player
@@ -181,9 +224,9 @@ func _draw_enemies(origin: Vector3, cos_y: float, sin_y: float) -> void:
 func _draw_self_marker() -> void:
 	draw_colored_polygon(
 		PackedVector2Array([
-			CENTER + Vector2(0.0, -SELF_MARKER_SIZE),
-			CENTER + Vector2(-SELF_MARKER_SIZE * 0.7, SELF_MARKER_SIZE * 0.7),
-			CENTER + Vector2(SELF_MARKER_SIZE * 0.7, SELF_MARKER_SIZE * 0.7),
+			_active_center + Vector2(0.0, -SELF_MARKER_SIZE),
+			_active_center + Vector2(-SELF_MARKER_SIZE * 0.7, SELF_MARKER_SIZE * 0.7),
+			_active_center + Vector2(SELF_MARKER_SIZE * 0.7, SELF_MARKER_SIZE * 0.7),
 		]),
 		SELF_COLOR
 	)
@@ -202,11 +245,12 @@ func _to_radar(world: Vector3, origin: Vector3, cos_y: float, sin_y: float) -> V
 	var dz := world.z - origin.z
 	var forward := -(dx * sin_y + dz * cos_y)
 	var right := dx * cos_y - dz * sin_y
-	return CENTER + Vector2(right, -forward) * _pixels_per_meter()
+	return _active_center + Vector2(right, -forward) * _pixels_per_meter()
 
 
 func _pixels_per_meter() -> float:
-	return radar_pixel_radius / maxf(radar_radius_meters, 0.001)
+	return _active_pixel_radius / maxf(_active_radius_meters, 0.001)
+
 
 
 func _resolve_player() -> Node3D:

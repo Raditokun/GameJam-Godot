@@ -63,6 +63,10 @@ var _ready_for_queries := false
 
 
 func _ready() -> void:
+	if GameSettings.difficulty == GameSettings.Difficulty.EASY:
+		coin_count = 5
+	else:
+		coin_count = 10
 	GameState.phase_changed.connect(_on_phase_changed)
 	# unbind(1) because boss_fight_started carries the spawned boss and clear_coins()
 	# takes no arguments -- connecting them directly does not fail at connect time,
