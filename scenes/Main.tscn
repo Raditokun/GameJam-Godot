@@ -14,6 +14,7 @@
 [ext_resource type="PackedScene" uid="uid://dw7o0212h582i" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/crate_tomatoes.gltf" id="8_5dy05"]
 [ext_resource type="PackedScene" uid="uid://byvpfn0i3wva7" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/dishrack_plates.gltf" id="9_v2cqe"]
 [ext_resource type="PackedScene" uid="uid://dpy4d6cd0t12e" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/food_ingredient_cheese_slice.gltf" id="10_4m8vs"]
+[ext_resource type="FontFile" uid="uid://buymujb17ux3s" path="res://Fonts/Dimbo Regular.ttf" id="11_r4bfa"]
 [ext_resource type="PackedScene" uid="uid://cq0iutnu23rlh" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/food_ingredient_ham_cooked.gltf" id="11_rmx21"]
 [ext_resource type="PackedScene" uid="uid://bs187dwrkp0km" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/food_ingredient_onion.gltf" id="12_beypw"]
 [ext_resource type="PackedScene" uid="uid://csdlorlj35fx4" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/food_ingredient_potato_mashed.gltf" id="13_dtnoj"]
@@ -7881,6 +7882,7 @@ grow_horizontal = 0
 theme_override_colors/font_color = Color(1, 0.9, 0.45, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 8
+theme_override_fonts/font = ExtResource("11_r4bfa")
 theme_override_font_sizes/font_size = 34
 text = "COINS  0/10"
 horizontal_alignment = 2

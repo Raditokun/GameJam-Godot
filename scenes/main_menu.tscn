@@ -7,6 +7,7 @@
 [ext_resource type="AudioStream" uid="uid://bhmgs1ijp0que" path="res://Sounds/Ditto.mp3" id="5_rtw2f"]
 [ext_resource type="Script" uid="uid://pajvm2u15n7h" path="res://scenes/fullscreen_control.gd" id="6_rtw2f"]
 [ext_resource type="Script" uid="uid://lvpg2lfyaimx" path="res://scenes/fps_control.gd" id="7_oa1go"]
+[ext_resource type="Script" uid="uid://c03hgmgrc0pfl" path="res://scenes/Next_HTP.gd" id="8_tbmy8"]
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_slfkp"]
 texture = ExtResource("2_bqqt6")
@@ -65,6 +66,37 @@ thickness = 6
 [sub_resource type="StyleBoxLine" id="StyleBoxLine_fnc6c"]
 color = Color(0.99255604, 0.69958925, 7.70092e-07, 1)
 thickness = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_slfkp"]
+bg_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 7
+corner_radius_top_right = 7
+corner_radius_bottom_right = 7
+corner_radius_bottom_left = 7
+corner_detail = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_wn6ll"]
+bg_color = Color(1, 1, 1, 1)
+corner_radius_top_right = 42
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fnc6c"]
+bg_color = Color(0.9372549, 0.47058824, 0.14901961, 1)
+corner_radius_top_left = 49
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kd2g1"]
+bg_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 51
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pnckv"]
+bg_color = Color(0.9372549, 0.47058824, 0.14901961, 1)
+corner_radius_top_right = 50
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vgu38"]
+bg_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 13
+corner_radius_top_right = 13
+corner_radius_bottom_right = 13
+corner_radius_bottom_left = 13
 
 [node name="Main Menu" type="Control" unique_id=909622305]
 layout_mode = 3
@@ -181,7 +213,7 @@ text = "TableTopia"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="DifficultyPanel" type="VBoxContainer" parent="."]
+[node name="DifficultyPanel" type="VBoxContainer" parent="." unique_id=984236421]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -197,7 +229,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 12
 
-[node name="DifficultyTitle" type="Label" parent="DifficultyPanel"]
+[node name="DifficultyTitle" type="Label" parent="DifficultyPanel" unique_id=233259883]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.99406976, 0.9587644, 0.6891002, 1)
 theme_override_fonts/font = ExtResource("3_wu84c")
@@ -205,7 +237,7 @@ theme_override_font_sizes/font_size = 36
 text = "Select Difficulty"
 horizontal_alignment = 1
 
-[node name="EasyButton" type="Button" parent="DifficultyPanel"]
+[node name="EasyButton" type="Button" parent="DifficultyPanel" unique_id=667062466]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_color = Color(0.15, 0.65, 0.15, 1)
@@ -219,7 +251,7 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_bqqt6")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_bqqt6")
 text = "Easy"
 
-[node name="MediumButton" type="Button" parent="DifficultyPanel"]
+[node name="MediumButton" type="Button" parent="DifficultyPanel" unique_id=1558358345]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_color = Color(0.8006712, 0.3358674, 0, 1)
@@ -233,7 +265,7 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_bqqt6")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_bqqt6")
 text = "Medium"
 
-[node name="HardButton" type="Button" parent="DifficultyPanel"]
+[node name="HardButton" type="Button" parent="DifficultyPanel" unique_id=1488455270]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_color = Color(0.85, 0.15, 0.15, 1)
@@ -247,7 +279,7 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_bqqt6")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_bqqt6")
 text = "Hard"
 
-[node name="BackButton" type="Button" parent="DifficultyPanel"]
+[node name="BackButton" type="Button" parent="DifficultyPanel" unique_id=1376569770]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
@@ -260,6 +292,7 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_bqqt6")
 text = "Back"
 
 [node name="Setting" type="Panel" parent="." unique_id=788231111]
+visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -397,15 +430,207 @@ theme_override_font_sizes/font_size = 30
 text = "Toogle FPS Counter"
 script = ExtResource("7_oa1go")
 
+[node name="How to PLay" type="Panel" parent="." unique_id=1647703533]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -370.5
+offset_top = -112.0
+offset_right = 370.5
+offset_bottom = 289.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="HTP title" type="Label" parent="How to PLay" unique_id=1028301508]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 41.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.93722296, 0.47062343, 0.15090242, 1)
+theme_override_colors/font_shadow_color = Color(1, 1, 1, 0.07058824)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = ExtResource("3_wu84c")
+theme_override_font_sizes/font_size = 30
+text = "How To Play"
+horizontal_alignment = 1
+
+[node name="w" type="Button" parent="How to PLay" unique_id=814332009]
+layout_mode = 0
+offset_left = 157.5
+offset_top = 89.0
+offset_right = 197.5
+offset_bottom = 129.0
+theme_override_colors/font_color = Color(0.8732406, 0.63662034, 0.32508668, 1)
+theme_override_fonts/font = ExtResource("3_wu84c")
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("StyleBoxFlat_slfkp")
+text = "W"
+
+[node name="S" type="Button" parent="How to PLay" unique_id=953086054]
+layout_mode = 0
+offset_left = 157.5
+offset_top = 133.0
+offset_right = 197.5
+offset_bottom = 173.0
+theme_override_colors/font_color = Color(0.8732406, 0.63662034, 0.32508668, 1)
+theme_override_fonts/font = ExtResource("3_wu84c")
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("StyleBoxFlat_slfkp")
+text = "S"
+
+[node name="D" type="Button" parent="How to PLay" unique_id=1041020731]
+layout_mode = 0
+offset_left = 201.5
+offset_top = 133.0
+offset_right = 241.5
+offset_bottom = 173.0
+theme_override_colors/font_color = Color(0.8732406, 0.63662034, 0.32508668, 1)
+theme_override_fonts/font = ExtResource("3_wu84c")
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("StyleBoxFlat_slfkp")
+text = "D"
+
+[node name="A" type="Button" parent="How to PLay" unique_id=1362517147]
+layout_mode = 0
+offset_left = 113.5
+offset_top = 133.0
+offset_right = 153.5
+offset_bottom = 173.0
+theme_override_colors/font_color = Color(0.8732406, 0.63662034, 0.32508668, 1)
+theme_override_fonts/font = ExtResource("3_wu84c")
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("StyleBoxFlat_slfkp")
+text = "A"
+
+[node name="MOVE" type="Label" parent="How to PLay" unique_id=1383657908]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 268.5
+offset_top = 122.0
+offset_right = -346.5
+offset_bottom = 163.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.93722296, 0.47062343, 0.15090242, 1)
+theme_override_colors/font_shadow_color = Color(1, 1, 1, 0.07058824)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = ExtResource("3_wu84c")
+theme_override_font_sizes/font_size = 30
+text = "Move around"
+horizontal_alignment = 1
+
+[node name="SPACE" type="Button" parent="How to PLay" unique_id=1074160537]
+layout_mode = 0
+offset_left = 104.5
+offset_top = 261.0
+offset_right = 253.5
+offset_bottom = 301.0
+theme_override_colors/font_color = Color(0.8732406, 0.63662034, 0.32508668, 1)
+theme_override_fonts/font = ExtResource("3_wu84c")
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("StyleBoxFlat_slfkp")
+text = "Spacebar"
+
+[node name="JUMP" type="Label" parent="How to PLay" unique_id=1263318472]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 306.5
+offset_top = 260.0
+offset_right = -380.5
+offset_bottom = 301.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.93722296, 0.47062343, 0.15090242, 1)
+theme_override_colors/font_shadow_color = Color(1, 1, 1, 0.07058824)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = ExtResource("3_wu84c")
+theme_override_font_sizes/font_size = 30
+text = "Jump"
+horizontal_alignment = 1
+
+[node name="Button" type="Button" parent="How to PLay" unique_id=1962653126]
+layout_mode = 0
+offset_left = 536.0
+offset_top = 117.0
+offset_right = 573.0
+offset_bottom = 162.0
+theme_override_styles/normal = SubResource("StyleBoxFlat_wn6ll")
+
+[node name="Button2" type="Button" parent="How to PLay" unique_id=273539907]
+layout_mode = 0
+offset_left = 494.0
+offset_top = 117.0
+offset_right = 532.0
+offset_bottom = 162.0
+theme_override_styles/normal = SubResource("StyleBoxFlat_fnc6c")
+
+[node name="Button3" type="Button" parent="How to PLay" unique_id=1366409530]
+layout_mode = 0
+offset_left = 496.0
+offset_top = 255.0
+offset_right = 534.0
+offset_bottom = 300.0
+theme_override_styles/normal = SubResource("StyleBoxFlat_kd2g1")
+
+[node name="Button4" type="Button" parent="How to PLay" unique_id=1755792571]
+layout_mode = 1
+anchors_preset = -1
+anchor_right = 0.024
+anchor_bottom = 0.05
+offset_left = 538.0
+offset_top = 254.0
+offset_right = 553.376
+offset_bottom = 280.95
+theme_override_styles/normal = SubResource("StyleBoxFlat_pnckv")
+
+[node name="MOVE2" type="Label" parent="How to PLay" unique_id=1575535758]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 603.5
+offset_top = 118.0
+offset_right = -80.5
+offset_bottom = 159.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.93722296, 0.47062343, 0.15090242, 1)
+theme_override_colors/font_shadow_color = Color(1, 1, 1, 0.07058824)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = ExtResource("3_wu84c")
+theme_override_font_sizes/font_size = 30
+text = "Shoot"
+horizontal_alignment = 1
+
+[node name="Button5" type="Button" parent="How to PLay" unique_id=733720278]
+layout_mode = 0
+offset_left = 635.5
+offset_top = 338.0
+offset_right = 725.0
+offset_bottom = 383.0
+theme_override_colors/font_color = Color(0.9372549, 0.47058824, 0.14901961, 1)
+theme_override_fonts/font = ExtResource("3_wu84c")
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("StyleBoxFlat_vgu38")
+text = "Next"
+script = ExtResource("8_tbmy8")
+
 [connection signal="pressed" from="MainButtons/Start" to="." method="_on_start_pressed"]
 [connection signal="pressed" from="MainButtons/Setting" to="." method="_on_setting_pressed"]
 [connection signal="pressed" from="MainButtons/Credits" to="." method="_on_credits_pressed"]
 [connection signal="pressed" from="MainButtons/Quit" to="." method="_on_quit_pressed"]
-[connection signal="pressed" from="Setting/Exit Setting" to="." method="_on_exit_setting_pressed"]
-[connection signal="value_changed" from="Setting/Music Slider" to="Setting/Music Slider" method="_on_value_changed"]
-[connection signal="toggled" from="Setting/FullscreenControl" to="Setting/FullscreenControl" method="_on_toggled"]
-[connection signal="toggled" from="Setting/FPScontrol" to="Setting/FPScontrol" method="_on_toggled"]
 [connection signal="pressed" from="DifficultyPanel/EasyButton" to="." method="_on_easy_pressed"]
 [connection signal="pressed" from="DifficultyPanel/MediumButton" to="." method="_on_medium_pressed"]
 [connection signal="pressed" from="DifficultyPanel/HardButton" to="." method="_on_hard_pressed"]
 [connection signal="pressed" from="DifficultyPanel/BackButton" to="." method="_on_back_difficulty_pressed"]
+[connection signal="pressed" from="Setting/Exit Setting" to="." method="_on_exit_setting_pressed"]
+[connection signal="value_changed" from="Setting/Music Slider" to="Setting/Music Slider" method="_on_value_changed"]
+[connection signal="toggled" from="Setting/FullscreenControl" to="Setting/FullscreenControl" method="_on_toggled"]
+[connection signal="toggled" from="Setting/FPScontrol" to="Setting/FPScontrol" method="_on_toggled"]
+[connection signal="pressed" from="How to PLay/Button5" to="How to PLay/Button5" method="_on_pressed"]

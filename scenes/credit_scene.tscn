@@ -3,6 +3,25 @@
 [ext_resource type="Script" uid="uid://ujwmx1iqnyq8" path="res://scenes/credit_text.gd" id="1_3pbma"]
 [ext_resource type="FontFile" uid="uid://buymujb17ux3s" path="res://Fonts/Dimbo Regular.ttf" id="1_cyc8d"]
 [ext_resource type="AudioStream" uid="uid://bpfes54ofjiq6" path="res://Sounds/OPENING SW _mixdown.mp3" id="3_12owj"]
+[ext_resource type="Script" uid="uid://v5kucw6ey5pj" path="res://scenes/back_button.gd" id="4_f4eow"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8q0x2"]
+bg_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0, 0, 0, 0.6392157)
+shadow_size = 5
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nqgi5"]
+bg_color = Color(0.88341564, 0.48827422, 0.29753274, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_a5x2q"]
+bg_color = Color(0.69682336, 0.7741422, 0, 1)
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_sfc58"]
 
 [node name="CreditScene" type="Control" unique_id=2125012763]
 layout_mode = 3
@@ -66,3 +85,22 @@ script = ExtResource("1_3pbma")
 [node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="." unique_id=752859489]
 stream = ExtResource("3_12owj")
 autoplay = true
+
+[node name="BackButton" type="Button" parent="." unique_id=1215267287]
+layout_mode = 0
+offset_left = 37.0
+offset_top = 585.0
+offset_right = 173.0
+offset_bottom = 630.0
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.8781542, 0.6418472, 0.28086814, 1)
+theme_override_fonts/font = ExtResource("1_cyc8d")
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleBoxFlat_8q0x2")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_nqgi5")
+theme_override_styles/hover = SubResource("StyleBoxFlat_a5x2q")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_sfc58")
+text = "Back"
+script = ExtResource("4_f4eow")
+
+[connection signal="pressed" from="BackButton" to="BackButton" method="_on_pressed"]

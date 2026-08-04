@@ -2,12 +2,15 @@ extends Control
 @onready var main_buttons: VBoxContainer = $MainButtons
 @onready var setting: Panel = $Setting
 @onready var difficulty_panel: VBoxContainer = $DifficultyPanel
+@onready var howtoplay: Panel = $"How to PLay"
 
 
 func _ready() -> void:
 	main_buttons.visible = true
 	setting.visible = false
 	difficulty_panel.visible = false
+	howtoplay.visible = false
+	
 
 
 func _on_start_pressed() -> void:
@@ -35,17 +38,26 @@ func _on_exit_setting_pressed() -> void:
 
 func _on_easy_pressed() -> void:
 	GameSettings.difficulty = GameSettings.Difficulty.EASY
-	get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	main_buttons.visible = false
+	setting.visible = false
+	difficulty_panel.visible = false
+	howtoplay.visible = true
 
 
 func _on_medium_pressed() -> void:
 	GameSettings.difficulty = GameSettings.Difficulty.MEDIUM
-	get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	main_buttons.visible = false
+	setting.visible = false
+	difficulty_panel.visible = false
+	howtoplay.visible = true
 
 
 func _on_hard_pressed() -> void:
 	GameSettings.difficulty = GameSettings.Difficulty.HARD
-	get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	main_buttons.visible = false
+	setting.visible = false
+	difficulty_panel.visible = false
+	howtoplay.visible = true
 
 
 func _on_back_difficulty_pressed() -> void:
