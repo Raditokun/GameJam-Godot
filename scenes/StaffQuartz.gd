@@ -26,6 +26,11 @@ const SPELL_2_IMPACT := preload("res://3DModels/Spell Effects (Free)/spell_effec
 ## flare, glow, sparks and the bulk of the fire).
 const IMPACT_LIFETIME := 0.8
 
+## One sound per attack, so the two are told apart by ear as well as by cooldown.
+## Both go through the Player's shared polyphonic SFXPlayer -- see Player.play_sfx().
+const SFX_LIGHTNING := preload("res://Sounds/lightning.mp3")
+const SFX_FIREBALL := preload("res://Sounds/fireball.mp3")
+
 @export_group("Primary (LMB)")
 ## 15, not the 5 this shipped with: at 5 the 500 HP boss took 100 clean hits,
 ## which is a slog rather than a fight. 15 makes it ~34.
@@ -100,12 +105,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("fire") and _bolt_timer == 0.0:
 		_bolt_timer = bolt_cooldown
+		_play_sfx(SFX_LIGHTNING)
 		_spawn_projectile(
 			bolt_damage, bolt_speed, bolt_radius, bolt_color,
 			ATTACK_PROJECTILE, ATTACK_IMPACT
 		)
 	elif event.is_action_pressed("fire_secondary") and _heavy_timer == 0.0:
 		_heavy_timer = heavy_cooldown
+		_play_sfx(SFX_FIREBALL)
 		_spawn_projectile(
 			heavy_damage, heavy_speed, heavy_radius, heavy_color,
 			SPELL_2_ORB, SPELL_2_IMPACT
@@ -155,6 +162,21 @@ func _aim_camera() -> Camera3D:
 			return node as Camera3D
 		node = node.get_parent()
 	return get_viewport().get_camera_3d()
+
+
+## Routes a sound at the shared SFX mixer on whichever ancestor owns one. Walks
+## the tree for the same reason _aim_camera() and _shooter() do: no node path out
+## of the weapon scene, so it survives being re-parented or tested on its own.
+##
+## Overlap is expected here and is what the mixer is for -- the primary's 0.18 s
+## cooldown means five bolts a second, each with its own voice.
+func _play_sfx(stream: AudioStream) -> void:
+	var node := get_parent()
+	while node != null:
+		if node.has_method("play_sfx"):
+			node.play_sfx(stream)
+			return
+		node = node.get_parent()
 
 
 ## The body the shot came from, so the projectile can ignore it.

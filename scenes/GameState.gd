@@ -24,6 +24,9 @@ signal boss_fight_started(boss: Node3D)
 const BOSS_SCENE := "res://scenes/BossMage.tscn"
 ## Where the Archmage lands: the middle of the tabletop.
 const BOSS_SPAWN := Vector3(50.5, 73.6, -4.5)
+## The burst that marks his arrival, and how long it lives.
+const BOSS_ENTRANCE_FX := "res://3DModels/Spell Effects (Free)/spell_effects/spell_2_impact.tscn"
+const ENTRANCE_FX_LIFETIME := 1.2
 
 enum Phase {
 	## Building. Time-of-battle is not running, no enemies exist.
@@ -131,6 +134,27 @@ func start_boss_fight() -> void:
 		phase = Phase.ACTION
 		phase_changed.emit(phase)
 
+	# The entrance runs in two halves. First the staff, the bars and the narration
+	# -- then a wait for that line to finish, and only then does the Archmage
+	# appear. Spawning him immediately would have him casting over his own
+	# introduction.
+	var player: Node = null
+	for node in tree.get_nodes_in_group("player"):
+		player = node
+		break
+	if player != null and player.has_method("begin_boss_fight"):
+		player.begin_boss_fight()
+		var voice = player.get("voice")
+		# Guarded: awaiting a signal that can never fire hangs forever, so a
+		# missing or silent VoicePlayer must fall straight through to the spawn
+		# rather than leaving the fight permanently un-started.
+		if voice != null and voice.playing:
+			await voice.finished
+
+	# The round can be reset while the line plays -- reset_round() clears this.
+	if not boss_fight:
+		return
+
 	var packed := load(BOSS_SCENE) as PackedScene
 	if packed == null:
 		push_warning("[GameState] boss scene missing: %s" % BOSS_SCENE)
@@ -143,11 +167,24 @@ func start_boss_fight() -> void:
 	# Positioned before add_child so the boss's _ready() sees its real spot.
 	boss.position = BOSS_SPAWN
 	host.add_child(boss)
+	_spawn_entrance_burst(host)
 
-	for node in tree.get_nodes_in_group("player"):
-		if node.has_method("begin_boss_fight"):
-			node.begin_boss_fight(boss)
+	if player != null and player.has_method("attach_boss"):
+		player.attach_boss(boss)
 	boss_fight_started.emit(boss)
+
+
+## A spell burst at the Archmage's feet as he lands, so he arrives rather than
+## simply existing. Reuses the impact rig the duel already loads.
+func _spawn_entrance_burst(host: Node) -> void:
+	var packed := load(BOSS_ENTRANCE_FX) as PackedScene
+	if packed == null:
+		return
+	var burst := packed.instantiate() as Node3D
+	host.add_child(burst)
+	burst.global_position = BOSS_SPAWN
+	# The rigs do not clean up after themselves.
+	get_tree().create_timer(ENTRANCE_FX_LIFETIME).timeout.connect(burst.queue_free)
 
 
 ## Where to parent runtime spawns.

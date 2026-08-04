@@ -1,5 +1,345 @@
 # Recap — change log
 
+## 2026-08-04 22:59 — Swarm cleared on victory, clean BGM handover, Space cuts the curse VO
+
+**Changed:**
+- `scenes/WaveSpawner.gd` — new `spawner_group` export (default `wave_spawner`),
+  joined in `_ready()`; new public `stop_waves()` (stop timer, rewind `_wave`,
+  `clear_enemies()`).
+- `scenes/Player.gd` — new `ENEMY_GROUP` / `WAVE_SPAWNER_GROUP` constants and
+  `_end_the_swarm()`, called at the top of `_on_boss_died()`; `stop_music()` added
+  to `begin_boss_fight()` immediately before `_play_voice(VO_SCENE_2)`; new
+  `_stop_voice()`, called from the curse-blackout Space branch of
+  `_unhandled_input()`.
+- `CLAUDE.md` — victory sweep documented under "Narration & the Ending", the
+  silence-between-tracks handover under "Music & Sound Effects", `stop_waves()`
+  and the new group under §2f.
+
+**Notes:**
+
+**Spawner first, then the sweep — the order is the whole point.** Freeing the
+minions before stopping the wave clock leaves a timer that can fire on a later
+frame and repopulate an arena the player has already won, which is exactly the bug
+this task exists to prevent. `_end_the_swarm()` calls `stop_waves()` on every
+spawner and only then walks the `enemies` group as a backstop for hand-placed
+enemies and anything a spawner never adopted. Probed for it: the board was still
+empty and the clock still stopped 90 frames after the boss died.
+
+**Why this matters beyond tidiness:** a minion left alive keeps hunting a player
+who is frozen and unarmed behind the ending card, and its contact kill would paint
+"YOU DIED" over the victory screen.
+
+**`stop_waves()` is deliberately not the existing PREPARATION reset.**
+`_apply_phase()` already stops the timer and clears the board, but that path means
+"between attempts". This one means "the round is over", so it is separate and
+callable from outside. Both are idempotent — `Timer.stop()` on a stopped timer is a
+no-op and `clear_enemies()` skips anything already queued for deletion — and the
+probe called each twice.
+
+**Found by group, not by node path.** `WaveSpawner` now joins `wave_spawner` in
+`_ready()`, because the spawner lives in `Main.tscn` and the Player is an instance
+inside it, so there is no stable path between them. The call goes through
+`has_method("stop_waves")`, so a scene with no spawner still clears its enemies.
+
+**The two music tracks are now separated by silence rather than butting together.**
+`begin_boss_fight()` stops the bench track before the narration starts and
+`attach_boss()` brings `BGM_BOSS` in after it finishes, so `scene 2.mp3` *is* the
+transition. Verified across the whole handover: `ezdif.mp3` → silence under
+`scene 2.mp3` → `boss.mp3`.
+
+**Verification:** headless probe against the real `Main.tscn` on the prologue
+route (since deleted). Space: curse blackout entered with `scene 1.mp3` playing and
+music silent; one `ui_accept` left the VO **stopped**, the blackout cleared and
+`ezdif.mp3` running. Swarm: ACTION brought 5 live minions with the wave clock
+running at wave 1; `begin_boss_fight()` stopped the music while `scene 2.mp3`
+played; `attach_boss()` started `boss.mp3`; `_on_boss_died()` took 5 minions → 0,
+stopped the clock, rewound the wave counter to 0 and stopped the music; 90 frames
+later still 0 minions and the clock still stopped; a repeat sweep ran clean.
+
+**Not verified in play.** Nothing was heard, so whether the silence under
+`scene 2.mp3` reads as a dramatic beat or as the audio having broken is a judgement
+for a windowed run — it is the one change here I would listen to first. Also
+unheard: whether cutting `scene 1.mp3` mid-word on a fast Space press sounds
+abrupt enough to want a short fade instead of a hard stop.
+
+## 2026-08-04 22:47 — Death jumpscare and boss detonation sounds
+
+**Changed:**
+- `scenes/Player.gd` — `SFX_FAH` preload (`fah.mp3`), played from `die()`.
+- `scenes/BossMage.gd` — `SFX_EXPLOSION` preload (`explosion.mp3`); new
+  `_play_sfx()` on the boss and a second one inside the `SpellOrb` inner class;
+  fired from `_on_landed()` and from `SpellOrb._spawn_impact()`.
+- `CLAUDE.md` — both sounds added to the SFX table in "Music & Sound Effects",
+  with the placement reasoning; cross-references in "Death & Retry" and §2h.
+
+**Notes:**
+
+**The explosion is at the two impact sites, NOT in `_shake_player()`.** The brief
+says "alongside `player.shake()`", and the obvious reading — put it in the shared
+shake helper — is wrong: `_cast_spell()` calls that same helper to rattle the
+camera as the orb *leaves the staff*, so the sound would detonate every spell at
+the moment it was fired rather than when it landed. The two real sites are
+`SpellOrb._spawn_impact()` and `_on_landed()`.
+
+**`_spawn_impact()` is the right hook inside the orb** because it is the one call
+every impact reaches — direct hit, splash, and a dud against scenery all funnel
+through it, so the sound can neither double-fire nor miss a case. It is also
+already the place the visual burst is spawned, and for the same reason: the orb
+`queue_free()`s on the frame it hits, so anything it owned would be cut off.
+
+**Two lookups rather than one cached reference.** `SpellOrb` finds the mixer by
+the `player_group` handle `_splash()` already uses (the orb is parented to the
+scene root and has no path to the player). `BossMage._play_sfx()` goes through
+`_resolve_player()` rather than the cached `_player`, because a leap can land after
+a reset has replaced the player.
+
+**No extra guard was needed on the death sting.** `die()` already early-returns on
+`is_dead`, so a swarm arriving together gets one `fah.mp3`. Verified by calling
+`die()` three times.
+
+**Deviation from the letter of the brief,** the same one as the 22:34 pass: each
+constant is preloaded only in the script that plays it — `SFX_FAH` in `Player.gd`,
+`SFX_EXPLOSION` in `BossMage.gd` — rather than both in both.
+
+**Verification:** headless probe against the real `Main.tscn` (since deleted). Both
+constants resolve to their mp3s. Death: `die()` set `is_dead`, shake 0.75, "YOU
+DIED" up, mixer still live; three consecutive `die()` calls still one death. Boss
+spawned for real at 1000 HP: `_on_landed()` gave shake 0.69 with the player clear
+of `crush_radius` and left them alive; `_cast_spell()` put one orb in flight, which
+detonated on a `StaticBody3D` (orb freed, mixer live) and, on a second cast,
+directly on the player for 100 → 25 health. Finally `fah` plus two explosions on a
+single frame with the mixer still live.
+
+**Not verified in play.** Nothing was heard. Two things worth listening for: every
+SFX player in this game is non-positional, so an orb detonating against distant
+scenery is as loud as one at your feet (mitigated by the boss holding
+`preferred_distance` 12, but not eliminated); and `fah.mp3` fires on *every* death,
+including a fall off the bench during a quiet build phase, where a jumpscare may
+land differently than it does mid-swarm.
+
+## 2026-08-04 22:34 — Seven sound effects and three looping music tracks wired in
+
+**Changed:**
+- `scenes/Player.tscn` — new `MusicPlayer` (`AudioStreamPlayer`, `volume_db` −7.0)
+  and `SFXPlayer` (`max_polyphony` 16) on the Player root, plus an
+  `AudioStreamPolyphonic` sub-resource (`polyphony` 16) as the SFXPlayer's stream.
+- `scenes/Player.gd` — `BGM_EZDIF` / `BGM_HARD` / `BGM_BOSS` preloads; `music`,
+  `sfx` and `_sfx_playback` refs; `_setup_sfx()`, `play_sfx()`,
+  `play_tabletop_music()`, `play_boss_music()`, `stop_music()`, `_play_music()`.
+  Call sites: `_ready()` (no-prologue branch), `_end_prologue()`, `attach_boss()`,
+  `_on_boss_died()`, `_on_round_reset()`.
+- `scenes/Pistol.gd` — `SFX_PISTOL` preload, played in `_fire()`; `_play_sfx()`
+  helper that walks up the tree for the mixer.
+- `scenes/StaffQuartz.gd` — `SFX_LIGHTNING` / `SFX_FIREBALL` preloads, played on
+  the LMB and RMB branches of `_unhandled_input()`; the same `_play_sfx()` helper.
+- `scenes/CoinSpawner.gd` — `SFX_COIN` preload, played in `_on_coin_collected()`;
+  `_play_sfx()` finds the player by the existing `player_group` export.
+- `CLAUDE.md` — new "Music & Sound Effects" section, HUD/node tree updated, §2h
+  and §2j cross-references, three new gotchas in §5.
+
+**Notes:**
+
+**`max_polyphony = 16` on its own does not do what the brief assumes, and I
+measured it rather than trusting it.** `AudioStreamPlayer.set_stream()` calls
+`stop()`, so assigning a different sound kills whatever is playing — the property
+only overlaps repeats of the *same* stream. With one shared player and four
+different effects that means a coin pickup cuts a cannon shot dead, silently. The
+node keeps `max_polyphony = 16` as specified, but its **stream is an
+`AudioStreamPolyphonic`** and `play_sfx()` pushes each effect in as its own voice.
+Probe: three distinct streams played concurrently, all voice ids valid and alive;
+the naive version reported `playing = false` the moment the second stream was
+assigned.
+
+**Looping needed code, not just a checkbox.** All seven files import with
+`loop=false`. `ezdif.mp3` is 108 s, so without `mp3.loop = true` in `_play_music()`
+the bench would go permanently silent under two minutes in. Set on the resource at
+runtime rather than in the `.import` files, since the editor rewrites those.
+
+**Three placement decisions the brief left open, all verified:**
+1. "When tabletop gameplay starts (after prologue)" — `_ready()` is the wrong place
+   on the normal route, because the menu path runs the kitchen prologue first.
+   Music starts in `_end_prologue()`, and `_ready()` only starts it on the F6 path
+   where there is no prologue. Probed both: silent through the kitchen, `ezdif.mp3`
+   the instant the curse lands.
+2. Boss music goes in `attach_boss()`, not `begin_boss_fight()` — the latter runs
+   *while* `scene 2.mp3` plays, which is exactly what the 22:03 split was for.
+3. Placed **above** `attach_boss()`'s null-guard on the health bar, so a missing
+   bar cannot also cost the music change.
+
+**Two things I added that the brief did not ask for**, because the spec as written
+leaves the music wrong afterwards: `_on_round_reset()` returns to the bench track
+(a retry out of the duel frees the boss, so `BGM_BOSS` would otherwise loop over a
+maze-building phase with no battle), and `_on_boss_died()` stops the music so the
+closing narration and victory card are not delivered over a combat loop. Both are
+one line and easy to reverse.
+
+**Deviation from the letter of the brief:** it lists all seven preloads under all
+four scripts. Each script preloads only what it plays — the three BGM constants in
+`Player.gd`, one or two SFX constants in each of the others. Seven duplicated
+constants across four files is noise, and the resources are shared by the cache
+either way.
+
+**Verification:** two headless probes against the real `Main.tscn` (both since
+deleted). Nodes: MusicPlayer at −7.0 dB, SFXPlayer `max_polyphony` 16 carrying an
+`AudioStreamPolyphonic` at polyphony 16, mixer live. Music: `ezdif.mp3` on
+MEDIUM at load with `loop` true; `hard.mp3` on HARD; back to `ezdif.mp3` on
+MEDIUM; re-requesting the playing track did not restart it; `boss.mp3` on
+`play_boss_music()`; back to `ezdif.mp3` after a round reset; stopped on boss
+death. Prologue route: silent through the kitchen (`track=none`), `ezdif.mp3`
+after `_end_prologue()`. SFX: all four constants resolve, all four fired through
+their real call sites (`Pistol._fire()`, both branches of the staff's
+`_unhandled_input`, `CoinSpawner._on_coin_collected`) with the mixer still live,
+and 20 overlapping bolts in one frame survived.
+
+**Not verified in play.** Nothing was heard — headless has no output device, so
+this proves the right stream is queued and playing, not that it sounds right. The
+mix in particular is unjudged: `MusicPlayer` is at the specified −7.0 dB while the
+SFX and the narration are at 0, and whether the cannon and the staff sit well
+against a 108 s loop needs a windowed run. Also unheard: whether `boss.mp3` cutting
+in at the end of `scene 2.mp3` lands cleanly, and whether the abrupt `stop_music()`
+on the boss's death wants a fade instead.
+
+## 2026-08-04 22:03 — Boss spawns after scene 2 finishes; 1000 HP
+
+**Changed:**
+- `scenes/BossMage.gd` — `max_health` 500 → **1000**; the EASY override is now
+  `max_health *= 0.7` instead of a hard 350.
+- `scenes/Player.tscn` — `BossHealthBar` `max_value`/`value` 500 → 1000.
+- `scenes/Player.gd` — `begin_boss_fight()` split: it now takes **no argument**
+  and covers the pre-arrival half (staff, both bars, `scene 2.mp3`); the new
+  `attach_boss(boss)` wires the bar to the boss once he exists.
+- `scenes/GameState.gd` — `start_boss_fight()` awaits the narration before
+  spawning; new `_spawn_entrance_burst()`, `BOSS_ENTRANCE_FX`,
+  `ENTRANCE_FX_LIFETIME`.
+- `CLAUDE.md` — §2h rewritten for the two-part entrance; every stale "500 HP"
+  reference updated.
+
+**Notes:**
+
+**The split was necessary, not cosmetic.** `begin_boss_fight(boss)` could not stay
+as it was: the boss does not exist at the point the narration starts. It now runs
+before the spawn and takes nothing; `attach_boss()` connects the bar afterwards.
+The bar shows full from the .tscn's authored 1000 during the line, then
+`attach_boss()` corrects the maximum from the real boss — which is what lets
+EASY's reduced total display correctly rather than showing 700/1000.
+
+**Two guards on the await, both load-bearing:**
+1. `voice.playing` is checked before awaiting. Awaiting a signal that can never
+   fire hangs forever, so a missing or silent VoicePlayer would leave the fight
+   permanently un-started — coins collected, props gone, no boss, no way forward.
+2. `boss_fight` is re-checked after the await. `reset_round()` can clear it while
+   the line plays; without the re-check, resetting mid-narration would still drop
+   an Archmage onto the bench seconds later.
+
+**I changed EASY's boss health to a multiplier** rather than the specified
+absolute. It was `max_health = 350.0`, hard-coded against the old 500 baseline —
+left alone, EASY would have stayed at 350 while MEDIUM/HARD doubled to 1000,
+turning a 30% discount into a 65% one. `max_health *= 0.7` keeps the intended
+ratio and means the next health change scales both tiers.
+
+**Verification:** headless probe (since deleted). Immediately after
+`start_boss_fight()`: props cleared, `scene 2.mp3` playing, staff equipped, boss
+bar up at 1000/1000, and **zero bosses spawned**. The boss then appeared after
+**1796 process frames** — i.e. once the real audio finished — at (50.35, 73.64,
+−4.40) with `max_health` 1000, `voice.playing` false, an entrance particle burst
+at the spawn point, and the bar tracking him. 250 damage took him to 750 with the
+bar following.
+
+**Not verified in play.** The 1796-frame wait is however long the recording is,
+which I have not heard — if `scene 2.mp3` is long, that is a long stare at an
+empty table, and the entrance burst is the only thing marking the arrival. Also
+untested: whether 1000 HP is a fight or a slog. At the staff's current damage that
+is ~67 primary hits or 25 heavy casts, double what it was.
+
+## 2026-08-04 21:58 — Preparation-phase tutorial panel
+
+**Changed:**
+- `scenes/Player.tscn` — new `HUD/PrepTutorialPanel` (PanelContainer, top-centre,
+  translucent rounded stylebox) containing `Rows` → `PrepTutorialHeader` (gold)
+  and `PrepTutorialLabel` (white), both Dimbo 26 pt with an 8 px black outline.
+- `scenes/Player.gd` — `_prep_tutorial` ref and `_update_prep_tutorial()`, called
+  from `_process`.
+- `CLAUDE.md` — HUD tree and a section on the panel.
+
+**Notes:**
+
+**Split into two Labels, because one cannot do it.** The brief asked for a
+"yellow header, white bullets" inside a single `Label` — but a Label renders in
+one colour. The options were a `RichTextLabel` with BBCode or two stacked Labels;
+I took the latter, which keeps plain Labels and keeps the requested
+`PrepTutorialLabel` name (it is the bullets), with `PrepTutorialHeader` above it.
+
+**Visibility is polled in `_process` rather than pushed from the state changes.**
+The panel must be down in five situations — prologue, ACTION, boss fight, the
+ending card and death — which are owned by four different subsystems. Wiring it
+from each would mean five call sites and one missed one leaves a tutorial panel
+sitting over the Archmage duel. It is a single boolean assignment per frame.
+
+**Added `mouse_filter = 2` on the panel and both labels**, which the brief did not
+ask for and which matters here specifically: the panel sits across the top of the
+screen during PREPARATION, and PREPARATION is exactly when LMB is the prop-drag
+tool. A Control accepting input there would swallow the drag clicks — the same
+trap the Minimap has documented.
+
+**Verification:** headless probe (since deleted). Both labels present with Dimbo
+resolved, 26 pt, 8 px outline, header gold (1, 0.85, 0.2) and body white; all four
+bullet lines present; `mouse_filter` 2. Visibility walked through the real state
+machine: hidden in the prologue, **shown** on reaching PREPARATION, hidden in
+ACTION, hidden during the boss fight, **shown** again after `reset_round()`, and
+hidden on death.
+
+**Not verified in play.** Whether 800 px of panel at the top centre crowds the
+view, and whether the emoji in the header render at all in Dimbo Regular — a
+custom font with no emoji coverage will fall back or show blanks — both need a
+windowed run. The emoji are the likelier problem of the two.
+
+## 2026-08-04 21:50 — Three voiceover beats and the victory ending
+
+**Changed:**
+- `scenes/Player.tscn` — new `VoicePlayer` (`AudioStreamPlayer`) on the Player.
+- `scenes/Player.gd` — `VO_SCENE_1/2/3` preloads, `VICTORY_TEXT`,
+  `MAIN_MENU_SCENE`, `_in_victory`, `voice`; `_play_voice()`; scene 1 fires in
+  `_on_book_inspected()`, scene 2 in `begin_boss_fight()`, scene 3 in
+  `_on_boss_died()`, which now runs the whole ending; `_return_to_menu()`;
+  `_physics_process` and `_unhandled_input` gained victory branches;
+  `_on_round_reset()` clears `_in_victory`.
+- `CLAUDE.md` — new "Narration & the Ending" section.
+
+**Notes:**
+
+**The `SubtitleLabel` font task was already done** at 21:25 — Dimbo, 36 pt, gold.
+The victory card reuses that same label rather than adding a second one, so it
+inherits the styling and there is one place to change it.
+
+**Two failure modes I guarded that the brief did not mention, both of which would
+have soft-locked the ending on a black screen:**
+1. `await voice.finished` on a signal that can never fire hangs **forever**. If
+   the audio file were missing, unimported or failed to load, the fade and the
+   ending card would simply never arrive. Both `voice != null` and
+   `voice.playing` are checked before the await.
+2. `_in_victory` is re-checked after each await. The player can reset the round
+   while the closing line is still playing, and without the re-check the sequence
+   would paint an ending card over a live game a second later.
+
+**`_return_to_menu()` resets `GameState` before the scene change.** The autoload
+survives the change, so `boss_fight`, `prologue_active` and `phase` would
+otherwise carry into the next run — the menu would launch a game that already
+believed it was mid-duel. Verified all three are cleared.
+
+**Verification:** headless probe (since deleted). All three streams preload and
+resolve; scene 1 plays on inspecting the book, scene 2 on `start_boss_fight()`,
+scene 3 on the boss's `died`. At the ending: `_in_victory` set, boss bar hidden,
+weapons holstered, player frozen at 0.00 horizontal despite being pushed at
+40 u/s. After the real audio ran to completion the overlay reached alpha **1.00**
+and the card appeared reading "THE END / (See you next time...) / [Press Space to
+Return to Main Menu]" in Dimbo at 36. Space then cleared `_in_victory`,
+`boss_fight` and `prologue_active` and left the phase at PREPARATION.
+
+**Not verified in play.** The audio itself was never heard — headless has no
+output device, so this proves the right stream is queued and `playing` is true,
+not that it sounds right or that the levels sit well against the music. Timing of
+the fade against the narration is likewise unheard.
+
 ## 2026-08-04 21:25 — Curse subtitle set in Dimbo Regular
 
 **Changed:**

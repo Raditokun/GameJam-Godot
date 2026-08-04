@@ -23,6 +23,8 @@ signal enemies_cleared(count: int)
 @export var enemy_scene: PackedScene
 ## Group every live enemy joins, so a reset can find them without node paths.
 @export var enemy_group := "enemies"
+## Group this spawner joins, so it can be found and shut down without a node path.
+@export var spawner_group := "wave_spawner"
 ## Group identifying the player, for the safe-zone distance check.
 @export var player_group := "player"
 
@@ -68,6 +70,11 @@ var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
 	_rng.randomize()
+	# Joined so anything that needs to shut the swarm down -- the victory sequence
+	# in Player.gd -- can find this by group rather than by a node path into
+	# Main.tscn, the same way everything else in this project locates a subsystem.
+	if not is_in_group(spawner_group):
+		add_to_group(spawner_group)
 	# Difficulty tuning — EASY gets a gentler swarm.
 	if GameSettings.difficulty == GameSettings.Difficulty.EASY:
 		first_wave_size = 3
@@ -331,6 +338,22 @@ func clear_enemies() -> void:
 		removed += 1
 	if removed > 0:
 		enemies_cleared.emit(removed)
+
+
+## Ends the swarm for good: stops the wave clock and clears the board.
+##
+## Distinct from the PREPARATION branch of `_apply_phase()`, which does the same
+## two things but is a *reset* -- this is called when the round is over (the
+## Archmage is dead) and no further wave should arrive whatever the phase does
+## next. `_wave` is rewound so a later round still starts from wave 1.
+##
+## Safe to call repeatedly: `Timer.stop()` on a stopped timer is a no-op and
+## `clear_enemies()` skips anything already queued for deletion.
+func stop_waves() -> void:
+	if _timer != null:
+		_timer.stop()
+	_wave = 0
+	clear_enemies()
 
 
 ## Current wave number; 0 before the first wave of an attempt.

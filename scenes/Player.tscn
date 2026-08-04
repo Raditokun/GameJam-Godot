@@ -6,9 +6,24 @@
 [ext_resource type="Script" uid="uid://b27tw8meflmor" path="res://scenes/Crosshair.gd" id="4_crosshair"]
 [ext_resource type="PackedScene" path="res://scenes/SettingsMenu.tscn" id="5_settings"]
 [ext_resource type="Script" uid="uid://dmh6pglfaqp03" path="res://scenes/BuildMode.gd" id="6_build"]
-[ext_resource type="Script" path="res://scenes/Minimap.gd" id="7_minimap"]
+[ext_resource type="Script" uid="uid://cb6pm7apkjft6" path="res://scenes/Minimap.gd" id="7_minimap"]
 [ext_resource type="PackedScene" path="res://scenes/StaffQuartz.tscn" id="8_staff"]
 [ext_resource type="FontFile" uid="uid://buymujb17ux3s" path="res://Fonts/Dimbo Regular.ttf" id="9_dimbo"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_player"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_player"]
+albedo_color = Color(0.3, 0.55, 0.9, 1)
+roughness = 0.7
+
+[sub_resource type="AudioStreamPolyphonic" id="AudioStreamPolyphonic_sfx"]
+polyphony = 16
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gunbar_fill"]
 bg_color = Color(0.2, 0.65, 1, 1)
@@ -22,17 +37,16 @@ bg_color = Color(0.6, 0.4, 1, 1)
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bossfill"]
 bg_color = Color(0.8, 0.25, 0.9, 1)
 
-[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
-radius = 0.4
-height = 1.8
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_player"]
-radius = 0.4
-height = 1.8
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_player"]
-albedo_color = Color(0.3, 0.55, 0.9, 1)
-roughness = 0.7
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_preppanel"]
+content_margin_left = 22.0
+content_margin_top = 14.0
+content_margin_right = 22.0
+content_margin_bottom = 14.0
+bg_color = Color(0.05, 0.04, 0.07, 0.72)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
 
 [node name="Player" type="CharacterBody3D" unique_id=1158772429 groups=["player"]]
 collision_layer = 3
@@ -61,16 +75,25 @@ visible = false
 ray = NodePath("../RayCast3D")
 cooldown_bar = NodePath("../../../HUD/GunBar")
 
-[node name="StaffQuartz" parent="Head/Camera3D" node_paths=PackedStringArray("cooldown_bar") instance=ExtResource("8_staff")]
-transform = Transform3D(0.95105654, -0.06424012, 0.30226815, 0, 0.9781476, 0.20791170, -0.309017, -0.19773698, 0.9301832, 0.35, -0.35, -0.6)
+[node name="StaffQuartz" parent="Head/Camera3D" unique_id=378864640 node_paths=PackedStringArray("cooldown_bar") instance=ExtResource("8_staff")]
+transform = Transform3D(0.95105654, -0.06424012, 0.30226815, 0, 0.9781476, 0.2079117, -0.309017, -0.19773698, 0.9301832, 0.35, -0.35, -0.6)
 visible = false
 cooldown_bar = NodePath("../../../HUD/StaffBar")
 
-[node name="Flashlight" type="SpotLight3D" parent="Head/Camera3D"]
+[node name="Flashlight" type="SpotLight3D" parent="Head/Camera3D" unique_id=573034836]
 visible = false
 light_energy = 4.0
 spot_range = 35.0
 spot_angle = 32.0
+
+[node name="VoicePlayer" type="AudioStreamPlayer" parent="." unique_id=1947897235]
+
+[node name="MusicPlayer" type="AudioStreamPlayer" parent="." unique_id=944032188]
+volume_db = -7.0
+
+[node name="SFXPlayer" type="AudioStreamPlayer" parent="." unique_id=805163252]
+stream = SubResource("AudioStreamPolyphonic_sfx")
+max_polyphony = 16
 
 [node name="BuildMode" type="Node3D" parent="." unique_id=1099238411]
 script = ExtResource("6_build")
@@ -148,7 +171,7 @@ thickness = 1.0
 center_dot = false
 color = Color(0.7621213, 0.8401127, 1, 0.9019608)
 
-[node name="PlayerHealthBar" type="ProgressBar" parent="HUD"]
+[node name="PlayerHealthBar" type="ProgressBar" parent="HUD" unique_id=656823247]
 visible = false
 anchors_preset = 2
 anchor_top = 1.0
@@ -159,11 +182,10 @@ offset_right = 320.0
 offset_bottom = -30.0
 grow_vertical = 0
 theme_override_styles/fill = SubResource("StyleBoxFlat_healthfill")
-max_value = 100.0
 value = 100.0
 show_percentage = false
 
-[node name="StaffBar" type="ProgressBar" parent="HUD"]
+[node name="StaffBar" type="ProgressBar" parent="HUD" unique_id=642661209]
 visible = false
 anchors_preset = 3
 anchor_left = 1.0
@@ -180,7 +202,7 @@ theme_override_styles/fill = SubResource("StyleBoxFlat_stafffill")
 value = 100.0
 show_percentage = false
 
-[node name="BossHealthBar" type="ProgressBar" parent="HUD"]
+[node name="BossHealthBar" type="ProgressBar" parent="HUD" unique_id=70115176]
 visible = false
 anchors_preset = 5
 anchor_left = 0.5
@@ -191,18 +213,17 @@ offset_right = 350.0
 offset_bottom = 56.0
 grow_horizontal = 2
 theme_override_styles/fill = SubResource("StyleBoxFlat_bossfill")
-max_value = 500.0
-value = 500.0
+max_value = 1000.0
+value = 1000.0
 show_percentage = false
 
-[node name="BossNameLabel" type="Label" parent="HUD/BossHealthBar"]
+[node name="BossNameLabel" type="Label" parent="HUD/BossHealthBar" unique_id=1893279883]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
 theme_override_colors/font_color = Color(1, 0.92, 0.75, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 6
@@ -211,7 +232,49 @@ text = "ARCHMAGE MALAKOR"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="BlackOverlay" type="ColorRect" parent="HUD"]
+[node name="PrepTutorialPanel" type="PanelContainer" parent="HUD" unique_id=1215599879]
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -400.0
+offset_top = 18.0
+offset_right = 400.0
+offset_bottom = 190.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_preppanel")
+
+[node name="Rows" type="VBoxContainer" parent="HUD/PrepTutorialPanel" unique_id=1198718000]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="PrepTutorialHeader" type="Label" parent="HUD/PrepTutorialPanel/Rows" unique_id=1765888173]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_fonts/font = ExtResource("9_dimbo")
+theme_override_font_sizes/font_size = 26
+text = " MAZE BUILDING PHASE "
+horizontal_alignment = 1
+
+[node name="PrepTutorialLabel" type="Label" parent="HUD/PrepTutorialPanel/Rows" unique_id=542764604]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_fonts/font = ExtResource("9_dimbo")
+theme_override_font_sizes/font_size = 26
+text = "• Left-Click & Drag props to build your maze!
+• Right-Click / Scroll Wheel to rotate carried props
+• Collect all coins while surviving the skeleton waves!
+• Press F to Start Wave"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="BlackOverlay" type="ColorRect" parent="HUD" unique_id=2025440436]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -220,7 +283,7 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0, 0, 0, 0)
 
-[node name="SubtitleLabel" type="Label" parent="HUD"]
+[node name="SubtitleLabel" type="Label" parent="HUD" unique_id=1248988231]
 visible = false
 anchors_preset = 15
 anchor_right = 1.0
@@ -231,7 +294,6 @@ offset_right = -140.0
 offset_bottom = -120.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
 theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 12
@@ -241,7 +303,7 @@ horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 2
 
-[node name="YouDiedLabel" type="Label" parent="HUD"]
+[node name="YouDiedLabel" type="Label" parent="HUD" unique_id=1977442533]
 visible = false
 anchors_preset = 8
 anchor_left = 0.5
@@ -264,12 +326,14 @@ text = "YOU DIED
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Minimap" type="Control" parent="HUD"]
+[node name="Minimap" type="Control" parent="HUD" unique_id=1852848507]
 layout_mode = 3
+anchors_preset = 0
 offset_left = 20.0
 offset_top = 20.0
 offset_right = 180.0
 offset_bottom = 180.0
 mouse_filter = 2
 script = ExtResource("7_minimap")
+
 [node name="SettingsMenu" parent="." unique_id=669604588 instance=ExtResource("5_settings")]

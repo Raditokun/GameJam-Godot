@@ -19,7 +19,7 @@ signal health_changed(current: float, maximum: float)
 signal died
 
 @export_group("Health")
-@export var max_health := 500.0
+@export var max_health := 1000.0
 
 @export_group("Movement")
 ## Walks toward the player between attacks so it cannot be kited forever.
@@ -66,6 +66,11 @@ const IMPACT_LIFETIME := 0.8
 ## The Archmage's colour. Tints the orb away from the asset's authored blue-white
 ## so his fire reads as his and not as the player's staff.
 const SPELL_TINT := Color(1.0, 0.32, 0.12)
+## The detonation, heard on both of the Archmage's attacks: wherever an orb lands
+## and wherever he lands. Played through the Player's shared polyphonic SFXPlayer
+## -- see Player.play_sfx() -- because the boss has no audio player of its own and
+## an orb frees itself on the frame it hits, so one of its own would be cut off.
+const SFX_EXPLOSION := preload("res://Sounds/explosion.mp3")
 
 static var _shared_anim_library: AnimationLibrary = null
 
@@ -80,9 +85,11 @@ var _leap_target := Vector3.ZERO
 
 
 func _ready() -> void:
-	# Difficulty tuning — EASY gives the boss less health.
+	# Difficulty tuning -- EASY gives the boss less health. Kept at 70% of the
+	# authored value so raising `max_health` scales both tiers together instead of
+	# leaving EASY stranded at an old absolute number.
 	if GameSettings.difficulty == GameSettings.Difficulty.EASY:
-		max_health = 350.0
+		max_health *= 0.7
 	health = max_health
 	_spell_timer = spell_interval
 	_leap_timer = leap_interval
@@ -200,6 +207,9 @@ func _begin_leap() -> void:
 
 func _on_landed() -> void:
 	_shake_player(land_shake)
+	# Alongside the shake, and deliberately NOT inside _shake_player(): the cast
+	# shakes the camera too, and a spell leaving the staff must not detonate.
+	_play_sfx(SFX_EXPLOSION)
 	if _player == null or not is_instance_valid(_player):
 		return
 	var flat := _player.global_position - global_position
@@ -225,6 +235,14 @@ func health_fraction() -> float:
 func _shake_player(amount: float) -> void:
 	if _player != null and _player.has_method("shake"):
 		_player.shake(amount)
+
+
+## Hands a sound to the Player's shared SFX mixer. Resolved rather than cached,
+## because the leap can land after a reset has replaced the player.
+func _play_sfx(stream: AudioStream) -> void:
+	var target := _resolve_player()
+	if target != null and target.has_method("play_sfx"):
+		target.play_sfx(stream)
 
 
 func _resolve_player() -> Node3D:
@@ -374,11 +392,14 @@ class SpellOrb:
 	## player can see how close the near-miss was.
 	##
 	## Parented to the scene rather than to this orb, which frees itself on the
-	## same frame and would take the burst with it.
+	## same frame and would take the burst with it. The detonation sound goes here
+	## for the same reason, and because this is the one call reached by every
+	## impact -- direct hit, splash and a dud against scenery alike.
 	func _spawn_impact() -> void:
 		var tree := get_tree()
 		if tree == null:
 			return
+		_play_sfx(SFX_EXPLOSION)
 		var host: Node = tree.current_scene
 		if host == null:
 			host = get_parent()
@@ -389,6 +410,17 @@ class SpellOrb:
 		burst.global_position = global_position
 		tint(burst, SPELL_TINT)
 		tree.create_timer(IMPACT_LIFETIME).timeout.connect(burst.queue_free)
+
+	## Hands a sound to the Player's shared SFX mixer.
+	##
+	## Found by GROUP, the same handle _splash() uses: the orb is parented to the
+	## scene root rather than to anything that could hold a path to the player.
+	func _play_sfx(stream: AudioStream) -> void:
+		for node in get_tree().get_nodes_in_group(player_group):
+			if node.has_method("play_sfx"):
+				node.play_sfx(stream)
+				return
+
 
 	## Anything in the player group within `splash_radius` of the impact takes the
 	## lesser hit. Near-misses still hurt, which is what stops the player from

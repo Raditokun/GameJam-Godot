@@ -117,6 +117,15 @@ extends CharacterBody3D
 @onready var you_died_label: Label = $HUD/YouDiedLabel
 @onready var health_bar: ProgressBar = get_node_or_null("HUD/PlayerHealthBar") as ProgressBar
 @onready var boss_health_bar: ProgressBar = get_node_or_null("HUD/BossHealthBar") as ProgressBar
+## One player for all three narration beats -- see the VO_SCENE_* constants.
+@onready var voice: AudioStreamPlayer = get_node_or_null("VoicePlayer") as AudioStreamPlayer
+## Looping background music. One track at a time -- see _play_music().
+@onready var music: AudioStreamPlayer = get_node_or_null("MusicPlayer") as AudioStreamPlayer
+## The game's one sound-effect mixer. Everything that makes a noise routes
+## through play_sfx() rather than carrying its own player -- see _setup_sfx().
+@onready var sfx: AudioStreamPlayer = get_node_or_null("SFXPlayer") as AudioStreamPlayer
+## Build-phase instructions. See _update_prep_tutorial().
+@onready var _prep_tutorial: Control = get_node_or_null("HUD/PrepTutorialPanel") as Control
 # Weapon slots in order: slot 1, slot 2. Reached with $ rather than exported
 # NodePaths because both live inside this scene; node exports only resolve when
 # the .tscn carries a node_paths= marker, which is easy to lose by hand.
@@ -179,6 +188,34 @@ const BOOK_PROMPT_BOB := 0.6
 ## Radians per millisecond for that bob -- a full cycle just over 2 s.
 const BOOK_PROMPT_BOB_RATE := 0.003
 
+## The three narration beats, in the order the player meets them: the curse, the
+## Archmage's entrance, and the ending. All played through one AudioStreamPlayer
+## so a new line always cuts the previous one off rather than overlapping it.
+const VO_SCENE_1 := preload("res://Sounds/scene 1.mp3")
+const VO_SCENE_2 := preload("res://Sounds/scene 2.mp3")
+const VO_SCENE_3 := preload("res://Sounds/scene 3.mp3")
+
+## The two looping background tracks the bench can run under, and the one the
+## Archmage brings with him. EASY and MEDIUM share `BGM_EZDIF`; HARD gets its own
+## track to go with the blackout. All three are started by _play_music(), which is
+## also what turns looping on -- they import with `loop = false`.
+const BGM_EZDIF := preload("res://Sounds/ezdif.mp3")
+const BGM_HARD := preload("res://Sounds/hard.mp3")
+const BGM_BOSS := preload("res://Sounds/boss.mp3")
+
+## The death sting. Played by die(), which is idempotent, so a whole swarm
+## arriving on the same frame gets one jumpscare rather than a wall of them.
+const SFX_FAH := preload("res://Sounds/fah.mp3")
+
+## Groups the victory sweep uses to shut the swarm down. Matching `WaveSpawner`'s
+## own `enemy_group` and `spawner_group` exports.
+const ENEMY_GROUP := "enemies"
+const WAVE_SPAWNER_GROUP := "wave_spawner"
+
+## The ending card. Shown in the same gold Dimbo as the curse.
+const VICTORY_TEXT := "THE END\n(See you next time...)\n\n[Press Space to Return to Main Menu]"
+const MAIN_MENU_SCENE := "res://scenes/main_menu.tscn"
+
 ## Height below which the player has fallen off the bench and dies. The tabletop
 ## is at y ~= 73.6 and the kitchen floor is at y = 0, so there is a wide dead band
 ## between "standing on the bench" and "falling". Matches the threshold
@@ -200,6 +237,10 @@ var is_prologue := false
 var _in_curse_blackout := false
 ## Movement tunables at 1x, captured before the prologue scales them up.
 var _base_movement := {}
+## True from the Archmage's death until the player returns to the menu. Freezes
+## movement and turns Space into "back to the main menu".
+var _in_victory := false
+
 ## The cursed book and its floating marker, both resolved once at prologue start.
 var _book: Node = null
 var _book_prompt: Label3D = null
@@ -210,6 +251,10 @@ var _book_prompt_rest_y := 0.0
 var is_dead := false
 ## Current camera shake amplitude, decaying to zero. Set by die().
 var _shake_intensity := 0.0
+
+## The SFXPlayer's polyphonic mixer, resolved once in _setup_sfx(). Null means
+## sound effects degrade to silence rather than erroring on every shot.
+var _sfx_playback: AudioStreamPlaybackPolyphonic = null
 
 
 func _ready() -> void:
@@ -246,10 +291,15 @@ func _ready() -> void:
 	_update_health_bar()
 	_set_health_bar_visible(false)
 	apply_environment_lighting()
+	_setup_sfx()
 	if GameState.prologue_requested:
 		# Consumed, so a later reset or scene reload does not replay the prologue.
 		GameState.prologue_requested = false
 		_begin_prologue.call_deferred()
+	else:
+		# No prologue to wait for -- running Main.tscn directly (F6) is already
+		# tabletop play, so the bench track starts here instead of at the curse.
+		play_tabletop_music()
 
 
 ## Puts the player in the kitchen at full size, before the curse.
@@ -300,6 +350,25 @@ func _begin_prologue() -> void:
 		_book_prompt = host.find_child("BookPromptLabel", true, false) as Label3D
 	if _book_prompt != null:
 		_book_prompt_rest_y = _book_prompt.position.y
+
+
+## Shows the build-phase instructions, and only then.
+##
+## Up during PREPARATION, down during the prologue (the player is a full-size
+## person in a kitchen, with no maze to build), during ACTION, during the duel and
+## behind the ending card. Driven from `_process` rather than from the four or
+## five places those states change, because one missed call site leaves a
+## tutorial panel sitting over the boss fight.
+func _update_prep_tutorial() -> void:
+	if _prep_tutorial == null:
+		return
+	_prep_tutorial.visible = (
+		GameState.is_preparation()
+		and not is_prologue
+		and not GameState.boss_fight
+		and not _in_victory
+		and not is_dead
+	)
 
 
 ## Shows the floating "[E] Open Book" marker while the player is near the book
@@ -374,6 +443,100 @@ func _on_book_inspected() -> void:
 	# Released so the fade is readable without the cursor trapped, and because
 	# nothing needs mouse-look while the screen is black.
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_play_voice(VO_SCENE_1)
+
+
+## Plays one narration line, cutting off whatever was playing. Guarded so a
+## missing VoicePlayer degrades to silence rather than crashing the beat it is
+## attached to.
+func _play_voice(stream: AudioStream) -> void:
+	if voice == null or stream == null:
+		return
+	voice.stop()
+	voice.stream = stream
+	voice.play()
+
+
+## Cuts the current narration line short. Used when the player dismisses the
+## screen a line belongs to before that line has finished.
+func _stop_voice() -> void:
+	if voice != null:
+		voice.stop()
+
+
+## Prepares the shared sound-effect mixer.
+##
+## `max_polyphony = 16` on its own is NOT enough, and this is the whole reason the
+## node carries an `AudioStreamPolyphonic`. Measured: `AudioStreamPlayer.set_stream()`
+## calls `stop()`, so assigning a different sound cuts the previous one dead --
+## max_polyphony only ever overlaps repeats of the SAME stream. One shared player
+## has to carry the cannon, both staff attacks and a coin pickup at once, so the
+## stream is a polyphonic mixer and each effect is pushed into it as its own voice.
+##
+## The mixer never ends, so the player stays `playing` for the whole session and
+## the playback handle stays valid.
+func _setup_sfx() -> void:
+	if sfx == null:
+		return
+	# Authored in Player.tscn; rebuilt here so a hand-stripped scene still works.
+	var poly := sfx.stream as AudioStreamPolyphonic
+	if poly == null:
+		poly = AudioStreamPolyphonic.new()
+		poly.polyphony = maxi(sfx.max_polyphony, 1)
+		sfx.stream = poly
+	sfx.play()
+	_sfx_playback = sfx.get_stream_playback() as AudioStreamPlaybackPolyphonic
+
+
+## Plays one sound effect. Public because the weapons and the coin spawner all
+## share this one player -- they find it by walking up the tree or by the `player`
+## group and call this through `has_method()`, so nothing outside needs a node
+## path into the Player scene.
+func play_sfx(stream: AudioStream) -> void:
+	if stream == null or _sfx_playback == null:
+		return
+	_sfx_playback.play_stream(stream)
+
+
+## Starts the bench track for the current difficulty: HARD gets its own, EASY and
+## MEDIUM share the other. Called when tabletop play actually begins -- the end of
+## the prologue, or `_ready()` when there is no prologue to wait for.
+func play_tabletop_music() -> void:
+	_play_music(
+		BGM_HARD if GameSettings.difficulty == GameSettings.Difficulty.HARD else BGM_EZDIF
+	)
+
+
+## Swaps the bench track for the Archmage's. Called from `attach_boss()`, i.e.
+## after `scene 2.mp3` has finished and the boss is really on the table -- not
+## from `begin_boss_fight()`, which runs while the narration is still playing.
+func play_boss_music() -> void:
+	_play_music(BGM_BOSS)
+
+
+func stop_music() -> void:
+	if music != null:
+		music.stop()
+
+
+## Puts one looping track on the music player, replacing whatever was there.
+##
+## Re-requesting the track already playing is a no-op: restarting it would drop a
+## gap into a loop the player is listening to for the whole round.
+func _play_music(stream: AudioStream) -> void:
+	if music == null or stream == null:
+		return
+	if music.stream == stream and music.playing:
+		return
+	# All three tracks import with `loop = false`, so without this each one plays
+	# through once and the game falls silent. Set on the stream resource rather
+	# than in the .import files, which the editor rewrites on re-import.
+	var mp3 := stream as AudioStreamMP3
+	if mp3 != null:
+		mp3.loop = true
+	music.stop()
+	music.stream = stream
+	music.play()
 
 
 ## Space. The curse lands: shrink to 1x, drop onto the bench, hand the round to
@@ -407,6 +570,9 @@ func _end_prologue() -> void:
 	velocity = Vector3.ZERO
 	_set_combat_hud_visible(true)
 	equip(_slot)
+	# Tabletop play begins here, so this is where the bench track comes in -- the
+	# kitchen runs under the curse narration alone.
+	play_tabletop_music()
 	# Hands the camera and the cursor to PrepCamera and starts the build phase.
 	GameState.end_prologue()
 
@@ -497,18 +663,43 @@ func shake(amount: float) -> void:
 ## Called by GameState when the Archmage spawns: hands over the Staff of Quartz
 ## and raises the boss health bar, following the boss's own health signal so the
 ## bar needs no per-frame polling.
-func begin_boss_fight(boss: Node) -> void:
+## The Archmage's entrance, part one: everything that happens *before* he is on
+## the table. Hands over the staff, raises both bars, and starts the narration.
+##
+## Split from `attach_boss()` because the boss is deliberately not spawned until
+## `scene 2.mp3` has finished -- the arrival lands on the end of the line rather
+## than talking over it.
+func begin_boss_fight() -> void:
 	equip(STAFF_SLOT)
 	health = max_health
 	_update_health_bar()
 	# The duel is the only thing that spends health, so this is where the bar
 	# earns its place on screen.
 	_set_health_bar_visible(true)
-	if boss_health_bar == null:
+	# The bench track ends the moment the Archmage is announced, so his
+	# introduction plays into silence. attach_boss() brings BGM_BOSS in at the end
+	# of the line, which leaves the narration as the whole transition between the
+	# two tracks rather than a crossfade over one of them.
+	stop_music()
+	_play_voice(VO_SCENE_2)
+	if boss_health_bar != null:
+		# Full, using the bar's authored maximum. attach_boss() corrects it from
+		# the real boss once he exists, which is what makes EASY's lower total
+		# show properly.
+		boss_health_bar.visible = true
+		boss_health_bar.value = boss_health_bar.max_value
+
+
+## Part two: the boss has arrived, so point the bar at him.
+func attach_boss(boss: Node) -> void:
+	# The duel's track takes over here rather than in begin_boss_fight(): this runs
+	# once `scene 2.mp3` has finished, so the swap lands on the Archmage's arrival
+	# instead of playing under his introduction. Ahead of the guard below, since the
+	# music should change whether or not there is a health bar to wire up.
+	play_boss_music()
+	if boss_health_bar == null or boss == null or not is_instance_valid(boss):
 		return
 	boss_health_bar.visible = true
-	if boss == null or not is_instance_valid(boss):
-		return
 	if "max_health" in boss:
 		boss_health_bar.max_value = boss.max_health
 		boss_health_bar.value = boss.max_health
@@ -525,9 +716,79 @@ func _on_boss_health_changed(current: float, maximum: float) -> void:
 	boss_health_bar.value = current
 
 
+## The Archmage is down. Freeze the player, let the closing narration run to the
+## end, then fade to black and put the ending card up.
+##
+## Awaits `voice.finished` rather than a fixed delay so the fade always lands on
+## the last word however long the recording is. If there is no player or no
+## stream the await would hang forever, so both are checked first -- a missing
+## audio file must not soft-lock the ending.
 func _on_boss_died() -> void:
 	if boss_health_bar != null:
 		boss_health_bar.visible = false
+	if _in_victory:
+		return
+	_in_victory = true
+	velocity = Vector3.ZERO
+	# The fight is won, so nothing hostile survives it. Without this any minion
+	# still on the bench keeps hunting a player who is frozen and unarmed behind
+	# the ending card -- and its contact kill would put "YOU DIED" over the
+	# victory screen.
+	_end_the_swarm()
+	_set_combat_hud_visible(false)
+	_set_health_bar_visible(false)
+	for weapon in weapons:
+		if is_instance_valid(weapon):
+			weapon.equipped = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	# The fight is over, so its music goes with it -- the closing line and the
+	# ending card play out in silence rather than over a battle loop.
+	stop_music()
+
+	_play_voice(VO_SCENE_3)
+	if voice != null and voice.playing:
+		await voice.finished
+
+	# The player may have retried out of the fight while the line played.
+	if not _in_victory:
+		return
+	var overlay := get_node_or_null("HUD/BlackOverlay") as ColorRect
+	if overlay != null:
+		var tween := create_tween()
+		tween.tween_property(overlay, "color:a", 1.0, FADE_TIME)
+		await tween.finished
+	if not _in_victory:
+		return
+	var subtitle := get_node_or_null("HUD/SubtitleLabel") as Label
+	if subtitle != null:
+		subtitle.text = VICTORY_TEXT
+		subtitle.visible = true
+
+
+## Shuts the swarm down permanently: stops every wave spawner, then sweeps the
+## board for anything the spawners do not own.
+##
+## The spawner goes first. Freeing the minions before stopping the clock leaves a
+## timer that can fire on a later frame and repopulate an arena the player has
+## already won, which is precisely the bug this is meant to prevent.
+##
+## Both lookups are by GROUP -- the spawner lives in `Main.tscn` and the Player is
+## an instance inside it, so there is no stable path between them -- and the
+## spawner is called through `has_method()`, so a scene without one still clears
+## its enemies.
+func _end_the_swarm() -> void:
+	var tree := get_tree()
+	if tree == null:
+		return
+	for node in tree.get_nodes_in_group(WAVE_SPAWNER_GROUP):
+		if node.has_method("stop_waves"):
+			node.stop_waves()
+	# The backstop: hand-placed enemies, and anything a spawner never adopted.
+	# Guarded on is_queued_for_deletion() because a freed node stays in its group
+	# until the end of the frame, and stop_waves() has just queued most of these.
+	for node in tree.get_nodes_in_group(ENEMY_GROUP):
+		if not node.is_queued_for_deletion():
+			node.queue_free()
 
 
 func _update_health_bar() -> void:
@@ -555,6 +816,9 @@ func die() -> void:
 		return
 	is_dead = true
 	_shake_intensity = 0.8
+	# Lands with the shake and the overlay, on the frame of the kill. The
+	# idempotence guard above is what keeps this to one sting per death.
+	play_sfx(SFX_FAH)
 	if you_died_label != null:
 		you_died_label.visible = true
 	# A prop still riding the carry spring would keep being steered by a corpse.
@@ -589,8 +853,25 @@ func _clear_death() -> void:
 		you_died_label.visible = false
 
 
+## Back to the title. Round state is reset first because `GameState` is an
+## autoload and survives the scene change -- without this the menu would launch
+## the next run still believing a boss fight was in progress.
+func _return_to_menu() -> void:
+	_in_victory = false
+	GameState.boss_fight = false
+	GameState.prologue_active = false
+	GameState.phase = GameState.Phase.PREPARATION
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	get_tree().change_scene_to_file(MAIN_MENU_SCENE)
+
+
 func _on_round_reset() -> void:
+	_in_victory = false
 	_clear_death()
+	# A reset ends any duel in progress (GameState.reset_round() frees the boss),
+	# so the boss track has to end with it -- otherwise a retry out of the fight
+	# rebuilds the maze under battle music that no longer has a battle.
+	play_tabletop_music()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -606,10 +887,23 @@ func _unhandled_input(event: InputEvent) -> void:
 		_pitch = clampf(_pitch - event.relative.y * look, -limit, limit)
 		head.rotation.x = _pitch
 
+	# The ending card outranks everything: Space goes back to the menu and nothing
+	# else does anything at all.
+	if _in_victory:
+		if event.is_action_pressed("ui_accept"):
+			get_viewport().set_input_as_handled()
+			_return_to_menu()
+		return
+
 	# Space ends the curse blackout. Checked before everything else, because
 	# while the screen is black this is the only input that means anything.
 	if _in_curse_blackout:
 		if event.is_action_pressed("ui_accept"):
+			# Space is "I have read this, move on", so the curse narration goes with
+			# the screen it belongs to. `scene 1.mp3` outlasts a quick reader, and
+			# leaving it running would have the curse still being pronounced over the
+			# bench -- and over the track play_tabletop_music() starts a line later.
+			_stop_voice()
 			_end_prologue()
 			get_viewport().set_input_as_handled()
 		return
@@ -680,7 +974,7 @@ func _physics_process(delta: float) -> void:
 
 	# Frozen while the curse subtitle is up, but still driven so gravity keeps
 	# the body settled.
-	if _in_curse_blackout:
+	if _in_curse_blackout or _in_victory:
 		velocity.x = 0.0
 		velocity.z = 0.0
 		if not is_on_floor():
@@ -783,6 +1077,7 @@ func _update_camera_shake(delta: float) -> void:
 func _process(delta: float) -> void:
 	_update_camera_shake(delta)
 	_update_book_prompt()
+	_update_prep_tutorial()
 	_update_phase_label()
 	var pos := global_position
 	stats_label.text = (

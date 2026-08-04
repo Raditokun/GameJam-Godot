@@ -13,6 +13,11 @@ extends Node3D
 ## Checking only the navmesh is not enough -- the carve outlines are 2D footprints, so a
 ## point can be walkable and still be underneath overhanging geometry.
 
+## The pickup chime. Played through the Player's shared polyphonic SFXPlayer --
+## the coin frees itself on collection, so a player of its own would be cut off
+## mid-sound. See Player.play_sfx().
+const SFX_COIN := preload("res://Sounds/pickupcoin.mp3")
+
 ## Emitted on every pickup, with the running count and the target.
 signal coin_collected(collected: int, total: int)
 ## Emitted when the last coin of the round is taken.
@@ -297,10 +302,22 @@ func _place_coin(spot: Vector3) -> void:
 
 func _on_coin_collected(_coin: Node3D) -> void:
 	_collected += 1
+	_play_sfx(SFX_COIN)
 	_update_label()
 	coin_collected.emit(_collected, coin_count)
 	if _collected >= coin_count:
 		all_coins_collected.emit()
+
+
+## Hands a sound to the Player's shared mixer. Found by GROUP, not node path --
+## the spawner sits in Main.tscn and the mixer inside Player.tscn, so there is no
+## stable path between them; `player_group` is the same handle _player_position()
+## already uses.
+func _play_sfx(stream: AudioStream) -> void:
+	for node: Node in get_tree().get_nodes_in_group(player_group):
+		if node.has_method("play_sfx"):
+			node.play_sfx(stream)
+			return
 
 
 ## Drops a point onto the actual tabletop. The navmesh bakes a little above the surface

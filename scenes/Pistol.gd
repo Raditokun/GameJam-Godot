@@ -13,6 +13,10 @@ extends Node3D
 ## duration)` method takes it. Nothing is hard-wired to the enemy type, so a
 ## future boss or destructible can opt in by growing the method.
 
+## The cannon's report. Played through the Player's shared polyphonic SFXPlayer
+## rather than a player of its own -- see Player.play_sfx().
+const SFX_PISTOL := preload("res://Sounds/pistol.mp3")
+
 @export_group("Shooting")
 ## The camera-mounted ray used for hitscan. Points at Camera3D/RayCast3D.
 @export var ray: RayCast3D
@@ -105,6 +109,7 @@ func _fire() -> void:
 	if ray == null:
 		return
 	_cooldown_timer = cooldown_time
+	_play_sfx(SFX_PISTOL)
 
 	# Resolve the ray right now rather than trusting the last physics tick.
 	ray.force_raycast_update()
@@ -116,6 +121,20 @@ func _fire() -> void:
 	if ray.is_colliding():
 		_apply_impact(ray.get_collider(), hit_point)
 	_spawn_tracer(muzzle.global_position, hit_point)
+
+
+## Routes a sound at the shared SFX mixer on whichever ancestor owns one.
+##
+## Walks up the tree the way _aim_camera()/_shooter() do in StaffQuartz rather
+## than holding a node path: the weapon is instanced inside Player.tscn, and a
+## path out of it breaks the moment the weapon is re-parented or tested alone.
+func _play_sfx(stream: AudioStream) -> void:
+	var node := get_parent()
+	while node != null:
+		if node.has_method("play_sfx"):
+			node.play_sfx(stream)
+			return
+		node = node.get_parent()
 
 
 ## Hands the slow, damage and a shot's worth of momentum to whatever was hit.

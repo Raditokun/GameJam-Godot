@@ -51,29 +51,37 @@ grow_vertical = 2
 theme_override_colors/default_color = Color(0.9963643, 0.7952883, 0.5399255, 1)
 theme_override_fonts/normal_font = ExtResource("1_cyc8d")
 theme_override_font_sizes/normal_font_size = 26
-text = "
-
-Developer Team
+text = "Developer Team
 Lead Project Officer  -  Muhammad Raditya Imansyah
 3D Specialist  -  Mohamad Kemal Bintang Ramadhan
 UI/UX Designer  -  Kevin Afkar Haya
 
 Assets
-KayKit Block Bits
-KayKit Board Games Bits
-KayKit City Builder Bits
-KayKit Dungeon Pack
-KayKit  Fantasy Weapon Bits
-KayKit Holliday Bits 1.0
-KayKit Platformer Pack 1.0
-KayKit Resource Bits 1.0
-KayKit Restaurant Bits 1.0
-KayKit RPG Tools Bits 1.0
-KayKit Skeletons 1.1
-KayKit Space Base Bits 1.0
+KayKit 3D Assets (Kay Lousberg)
+Spell Effects Pack
 
-Music
+Music & Sound Effects
 Ditto remix by @sol_invictus
+
+Daylight Difficulty (Easy & Medium BGM)
+\"Run Amok\" by Kevin MacLeod
+https://incompetech.com/music/royalty-free/music.html
+
+Dark Difficulty (Hard BGM)
+\"Dark Fantasy Ambient (Dungeon Synth)\" by DeusLower
+https://pixabay.com/music/ambient-dark-fantasy-ambient-dungeon-synthpiano-verse-248214/
+
+Electric Shoot SFX
+\"Electric Discharge\" by DRAGON-STUDIO
+https://pixabay.com/sound-effects/film-special-effects-electric-discharge-386160/
+
+Fireball Shoot SFX
+\"fire magic (6)\" by Yodguard
+https://pixabay.com/sound-effects/film-special-effects-fire-magic-6-378641/
+
+⚠️ Disclaimer ⚠️
+Generative AI was NOT used to create any 3D models, textures, music, audio, or visual game assets.
+AI was strictly used as an  coding assistant  during development.
 
 #AYOJOINMAGE
 #AYOJOINMAGE
