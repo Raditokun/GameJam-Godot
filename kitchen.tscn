@@ -3,6 +3,8 @@
 [ext_resource type="PackedScene" uid="uid://t7554legjbr3" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/door_A.gltf" id="1_anvgo"]
 [ext_resource type="PackedScene" uid="uid://b1tscjvrwm2p0" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/kitchencounter_straight_decorated.gltf" id="3_0pf43"]
 [ext_resource type="PackedScene" uid="uid://do0w3vbp8fip4" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/kitchencounter_straight_A_decorated.gltf" id="4_45h7f"]
+[ext_resource type="Texture2D" uid="uid://b1u7ivadg7s28" path="res://2D Model/gamedev poster.png" id="4_gh3rl"]
+[ext_resource type="Texture2D" uid="uid://vfxkjf1bmf0q" path="res://2D Model/appdev poster.png" id="5_mwpcm"]
 [ext_resource type="PackedScene" uid="uid://lb35wsnlya11" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/food_stew.gltf" id="5_trvxj"]
 [ext_resource type="PackedScene" uid="uid://b6xjy80td5fuy" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/kitchencabinet_half.gltf" id="6_gh3rl"]
 [ext_resource type="PackedScene" uid="uid://1iej4cmtrm1k" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/kitchencounter_innercorner.gltf" id="7_mwpcm"]
@@ -19,6 +21,37 @@
 [ext_resource type="PackedScene" uid="uid://byr5q3r8yy0kj" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/wall.gltf" id="18_6ty1x"]
 [ext_resource type="ArrayMesh" uid="uid://wujyut5gus0d" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/obj/kitchentable_B_large.obj" id="19_anvgo"]
 [ext_resource type="PackedScene" uid="uid://boir8fyhwunlp" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/wall_doorway.gltf" id="19_igr4s"]
+[ext_resource type="ArrayMesh" uid="uid://gismj7w5q5k5" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/obj/fridge_A.obj" id="22_gd6ct"]
+[ext_resource type="Texture2D" uid="uid://ceg5s0ubuhwps" path="res://2D Model/656874bcb8911d93bf8fbefb750a49b4.jpg" id="23_0vlrs"]
+[ext_resource type="Texture2D" uid="uid://eigtvdepk8ah" path="res://2D Model/20231004_175803.jpg" id="24_48bnl"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_yxtms"]
+albedo_texture = ExtResource("4_gh3rl")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_fsmef"]
+material = SubResource("StandardMaterial3D_yxtms")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_oav6p"]
+albedo_texture = ExtResource("5_mwpcm")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_yxtms"]
+material = SubResource("StandardMaterial3D_oav6p")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6hkrd"]
+albedo_texture = ExtResource("23_0vlrs")
+emission_enabled = true
+emission_energy_multiplier = 1.1
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_oav6p"]
+material = SubResource("StandardMaterial3D_6hkrd")
+
+[sub_resource type="BoxMesh" id="BoxMesh_yxtms"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_krj2w"]
+albedo_texture = ExtResource("24_48bnl")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_6hkrd"]
+material = SubResource("StandardMaterial3D_krj2w")
 
 [node name="Node3D" type="Node3D" unique_id=1178546438]
 
@@ -50,6 +83,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5000002, 0, 5.2000003)
 
 [node name="wall9" parent="Wall" unique_id=1568336179 instance=ExtResource("18_6ty1x")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3841858e-07, 0, 5.2000003)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Wall/wall9" unique_id=482504323]
+transform = Transform3D(-0.5343633, -8.1410995e-08, 0.097333364, -0.065943375, -5.4089533e-08, -0.7887279, 4.7069893e-08, -1, 3.473792e-08, -2.128394, 2.2526696, -0.26774597)
+mesh = SubResource("PlaneMesh_fsmef")
+
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="Wall/wall9" unique_id=1029807913]
+transform = Transform3D(-0.43577582, 8.308357e-09, -0.13703048, 0.084367245, 4.2914518e-08, -0.7077932, 0, -1.0000001, -3.1513107e-08, 2, 2.3484979, -0.32717896)
+mesh = SubResource("PlaneMesh_yxtms")
 
 [node name="wall4" parent="Wall" unique_id=1167666269 instance=ExtResource("18_6ty1x")]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -5.2000003, 0, -2.8312206e-07)
@@ -148,3 +189,71 @@ transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -5, 
 
 [node name="KitchentableBLarge" type="MeshInstance3D" parent="." unique_id=1541299922]
 mesh = ExtResource("19_anvgo")
+
+[node name="OmniLight3D" type="OmniLight3D" parent="." unique_id=1195583914]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.104443, 2, 0)
+light_color = Color(0.3882353, 0.85882354, 0.9137255, 1)
+light_energy = 0.048
+light_indirect_energy = 0.0
+light_volumetric_fog_energy = 7.375
+light_size = 2.55
+shadow_enabled = true
+
+[node name="FridgeA" type="MeshInstance3D" parent="." unique_id=1311508833]
+transform = Transform3D(-5.7, 0, -4.983099e-07, 0, 3.6890004, 0, 4.983098e-07, 0, -5.700001, 4, 0, -38)
+mesh = ExtResource("22_gd6ct")
+
+[node name="FridgeA2" type="MeshInstance3D" parent="." unique_id=511747945]
+transform = Transform3D(-5.7, 0, -4.983099e-07, 0, 3.5414407, 0, 4.983098e-07, 0, -5.700001, -3, -3, -37.8)
+mesh = ExtResource("22_gd6ct")
+
+[node name="FridgeA3" type="MeshInstance3D" parent="." unique_id=1990396371]
+transform = Transform3D(-5.7, 0, -4.983099e-07, 0, 2.7888842, 0, 4.983098e-07, 0, -5.700001, 1, -4, -35)
+mesh = ExtResource("22_gd6ct")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=2060521071]
+transform = Transform3D(-44.986588, 1.7444595e-06, 7.3186906e-14, 0, 8.722298e-07, -19.152, 3.9328525e-06, 19.95429, 8.3716066e-07, 4, 8, -36)
+mesh = SubResource("PlaneMesh_oav6p")
+
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="." unique_id=717645242]
+transform = Transform3D(49.9851, 0, 0, 0, -1.9954287, 0, 0, 0, 35.154, 4, -2, -20)
+mesh = SubResource("BoxMesh_yxtms")
+
+[node name="CSGBox3D3" type="CSGBox3D" parent="." unique_id=636627820]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -3, 6, -34)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="CSGBox3D3" unique_id=92705449]
+transform = Transform3D(-2.1855694e-08, -1, 0, 0.5, -4.371139e-08, 0, 0, 0, 0.5, -0.60000014, 0, 0)
+mesh = SubResource("PlaneMesh_6hkrd")
+
+[node name="OmniLight3D2" type="OmniLight3D" parent="." unique_id=1846078097]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 2, -34)
+light_energy = 1.634
+light_size = 20.62
+
+[node name="OmniLight3D3" type="OmniLight3D" parent="." unique_id=901222811]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 2, -29)
+light_energy = 1.634
+light_size = 20.62
+
+[node name="OmniLight3D4" type="OmniLight3D" parent="." unique_id=1999198027]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 7, -32)
+light_energy = 1.634
+light_size = 20.62
+
+[node name="OmniLight3D5" type="OmniLight3D" parent="." unique_id=582971470]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.9283004, 0)
+light_energy = 0.048
+light_size = 1.365
+
+[node name="OmniLight3D6" type="OmniLight3D" parent="." unique_id=1779393239]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 2.3137116, 4.8436985)
+light_energy = 0.048
+light_volumetric_fog_energy = 1.34
+light_size = 4.6
+
+[node name="OmniLight3D7" type="OmniLight3D" parent="." unique_id=1664408082]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1746073, 2.3137116, 4.8436985)
+light_energy = 0.048
+light_volumetric_fog_energy = 1.34
+light_size = 4.6
