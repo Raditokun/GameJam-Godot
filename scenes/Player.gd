@@ -108,11 +108,14 @@ extends CharacterBody3D
 @onready var stats_label: Label = $HUD/StatsLabel
 @onready var phase_label: Label = $HUD/PhaseLabel
 @onready var you_died_label: Label = $HUD/YouDiedLabel
+@onready var health_bar: ProgressBar = get_node_or_null("HUD/PlayerHealthBar") as ProgressBar
+@onready var boss_health_bar: ProgressBar = get_node_or_null("HUD/BossHealthBar") as ProgressBar
 # Weapon slots in order: slot 1, slot 2. Reached with $ rather than exported
 # NodePaths because both live inside this scene; node exports only resolve when
 # the .tscn carries a node_paths= marker, which is easy to lose by hand.
 @onready var weapons: Array[Node3D] = [
 	$Head/Camera3D/Pistol,
+	$Head/Camera3D/StaffQuartz,
 ]
 
 var _pitch := 0.0
@@ -146,11 +149,21 @@ var _stowed_slot := 0
 # Pose the player is returned to when a round resets.
 var _spawn_transform := Transform3D.IDENTITY
 
+## Index of the Staff of Quartz in `weapons`. Named so the boss-fight handover
+## does not hard-code a bare 1.
+const STAFF_SLOT := 1
+
 ## Height below which the player has fallen off the bench and dies. The tabletop
 ## is at y ~= 73.6 and the kitchen floor is at y = 0, so there is a wide dead band
 ## between "standing on the bench" and "falling". Matches the threshold
 ## PrepCamera and Enemy use to despawn fallen props and enemies.
 const FALL_DEATH_Y := 65.0
+
+## Hit points. Only the Archmage's spells spend these — a minion that reaches the
+## player kills outright, so this is the boss fight's own damage model rather
+## than a general health system.
+var health := 100.0
+var max_health := 100.0
 
 ## True from the moment an enemy reaches the player until they retry. Gates
 ## movement and every input except the two retry keys.
@@ -189,6 +202,87 @@ func _ready() -> void:
 	_on_phase_changed(GameState.phase)
 	if you_died_label != null:
 		you_died_label.visible = false
+	health = max_health
+	_update_health_bar()
+	_set_health_bar_visible(false)
+
+
+## Spends health, shakes the camera, and dies at zero. Called by the Archmage's
+## spells through has_method(), so nothing on the boss side knows the player type.
+##
+## Note a minion reaching the player still calls die() directly and ignores this:
+## contact with the swarm is lethal by design, and routing it through health
+## would mean surviving a skeleton that has already caught you.
+func take_damage(amount: float) -> void:
+	if is_dead or amount <= 0.0:
+		return
+	health = maxf(health - amount, 0.0)
+	_update_health_bar()
+	# Scaled by the size of the hit, so a splash graze reads differently from a
+	# direct spell to the chest.
+	shake(clampf(0.25 + amount / 100.0, 0.25, 0.9))
+	if health <= 0.0:
+		die()
+
+
+## Adds camera shake without overwriting a bigger one already running.
+## Public so the boss can call it on a cast or a landing.
+func shake(amount: float) -> void:
+	_shake_intensity = maxf(_shake_intensity, amount)
+
+
+## Called by GameState when the Archmage spawns: hands over the Staff of Quartz
+## and raises the boss health bar, following the boss's own health signal so the
+## bar needs no per-frame polling.
+func begin_boss_fight(boss: Node) -> void:
+	equip(STAFF_SLOT)
+	health = max_health
+	_update_health_bar()
+	# The duel is the only thing that spends health, so this is where the bar
+	# earns its place on screen.
+	_set_health_bar_visible(true)
+	if boss_health_bar == null:
+		return
+	boss_health_bar.visible = true
+	if boss == null or not is_instance_valid(boss):
+		return
+	if "max_health" in boss:
+		boss_health_bar.max_value = boss.max_health
+		boss_health_bar.value = boss.max_health
+	if boss.has_signal("health_changed"):
+		boss.health_changed.connect(_on_boss_health_changed)
+	if boss.has_signal("died"):
+		boss.died.connect(_on_boss_died)
+
+
+func _on_boss_health_changed(current: float, maximum: float) -> void:
+	if boss_health_bar == null:
+		return
+	boss_health_bar.max_value = maximum
+	boss_health_bar.value = current
+
+
+func _on_boss_died() -> void:
+	if boss_health_bar != null:
+		boss_health_bar.visible = false
+
+
+func _update_health_bar() -> void:
+	if health_bar == null:
+		return
+	health_bar.max_value = max_health
+	health_bar.value = health
+
+
+## The health bar belongs to the Archmage duel and nothing else.
+##
+## Health is only ever spent by his spells -- a minion that reaches the player
+## kills outright -- so a permanently visible 100/100 bar would be HUD noise
+## through the entire build-and-survive loop, and would imply a damage model the
+## rest of the game does not have.
+func _set_health_bar_visible(shown: bool) -> void:
+	if health_bar != null:
+		health_bar.visible = shown
 
 
 ## Called by an enemy that has reached the player. Idempotent -- a whole swarm
@@ -215,6 +309,13 @@ func _respawn() -> void:
 func _clear_death() -> void:
 	is_dead = false
 	_shake_intensity = 0.0
+	# A retry is a fresh attempt: the boss is re-spawned at full health, so the
+	# player has to be too or the second attempt starts already beaten.
+	health = max_health
+	_update_health_bar()
+	# A reset ends any duel in progress -- GameState.reset_round() frees the boss
+	# -- so the bar goes away with it. This is the path `_on_round_reset()` takes.
+	_set_health_bar_visible(false)
 	if camera != null:
 		camera.h_offset = 0.0
 		camera.v_offset = 0.0

@@ -64,6 +64,15 @@ var _ready_for_queries := false
 
 func _ready() -> void:
 	GameState.phase_changed.connect(_on_phase_changed)
+	# unbind(1) because boss_fight_started carries the spawned boss and clear_coins()
+	# takes no arguments -- connecting them directly does not fail at connect time,
+	# it fails at EMIT time with "method expected 0 arguments, but called with 1",
+	# which surfaces only when a boss fight actually starts.
+	GameState.boss_fight_started.connect(clear_coins.unbind(1))
+	# Collecting the tenth coin IS the way into the Archmage duel. Connected from
+	# this side because the signal lives here and GameState is an autoload -- the
+	# reverse would need GameState to go hunting for a CoinSpawner by node path.
+	all_coins_collected.connect(GameState.start_boss_fight)
 	# Points are built on the first synchronised physics frame -- see _physics_process.
 	set_physics_process(true)
 	_update_label()
@@ -176,11 +185,19 @@ func _on_phase_changed(new_phase: int) -> void:
 
 
 func _apply_phase(new_phase: int) -> void:
+	# The Archmage duel is not a collect-a-thon. start_boss_fight() enters ACTION to
+	# bring the weapons out, and without this the coins would scatter across the
+	# arena and the counter would sit on the HUD through the whole fight.
+	if GameState.boss_fight:
+		clear_coins()
+		return
+
 	if new_phase == GameState.Phase.ACTION:
 		if not _ready_for_queries:
 			return
+		# clear_coins() also rewinds the counter and hides it; the readout goes back
+		# up at the end of this branch once the new coins exist.
 		clear_coins()
-		_collected = 0
 		# Rebuild first: the player has just finished rearranging the maze, so last
 		# round's candidate list may now be buried or unreachable.
 		_build_candidates()
@@ -191,9 +208,6 @@ func _apply_phase(new_phase: int) -> void:
 
 	# PREPARATION: empty the board and hide the counter.
 	clear_coins()
-	_collected = 0
-	_update_label()
-	_set_counter_visible(false)
 
 
 ## Places `coin_count` coins in widening distance bands from the player.
@@ -307,13 +321,22 @@ func _player_position() -> Vector3:
 	return global_position
 
 
-## Removes every uncollected coin. Skips nodes already queued for deletion, because a
-## freed node stays in its group until the end of the frame.
+## Wipes the collectible round: removes every uncollected coin, rewinds the counter and
+## takes the readout off the HUD.
+##
+## Skips nodes already queued for deletion, because a freed node stays in its group until
+## the end of the frame and would otherwise be freed twice.
+##
+## Safe to call repeatedly -- the boss fight reaches this by two routes (the phase change
+## and `boss_fight_started`) and both firing is fine.
 func clear_coins() -> void:
 	for node: Node in get_tree().get_nodes_in_group(coin_group):
 		if node.is_queued_for_deletion():
 			continue
 		node.queue_free()
+	_collected = 0
+	_update_label()
+	_set_counter_visible(false)
 
 
 func _update_label() -> void:

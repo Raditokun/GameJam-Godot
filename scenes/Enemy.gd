@@ -57,6 +57,39 @@ const UNSTICK_STUCK_TIME := 0.6
 ## zeroing _stuck_time.
 const UNSTICK_COOLDOWN := 0.4
 
+## Seconds between line-of-sight checks. `has_line_of_sight()` fires a forced
+## raycast up to `aggro_range` (250) long, and at a full wave that was one such
+## cast per enemy per physics frame -- one of the largest per-enemy costs on the
+## bench. 0.12 s is far below `aggro_memory` (2.0), so the aggro state cannot
+## flicker from the staleness; the worst case is spotting the player ~7 frames
+## late, which is invisible next to a 2-second memory.
+const LOS_INTERVAL := 0.12
+## Seconds of being impeded before the corner feelers are consulted at all. See
+## _corner_slide() for what this costs in behaviour.
+const FEELER_STUCK_THRESHOLD := 0.08
+
+## Where the Rig_Medium animations live.
+##
+## `Skeleton_Minion.glb` ships the rig and the meshes but **no AnimationPlayer and
+## no animations at all** -- KayKit keeps them in separate per-rig packs. Both
+## packs animate `Rig_Medium/Skeleton3D` with the same 23 bones the character
+## carries, so their tracks resolve against the model unchanged. Two packs are
+## needed because the run and the idle live in different files.
+const ANIM_PACK_MOVEMENT := "res://3DModels/KayKit_Skeletons_1.1_FREE/KayKit_Skeletons_1.1_FREE/Animations/gltf/Rig_Medium/Rig_Medium_MovementBasic.glb"
+const ANIM_PACK_GENERAL := "res://3DModels/KayKit_Skeletons_1.1_FREE/KayKit_Skeletons_1.1_FREE/Animations/gltf/Rig_Medium/Rig_Medium_General.glb"
+
+## Names as they actually appear in those packs. There is no plain "Idle" or
+## "Run" -- the pack uses Idle_A/Idle_B and Running_A/Running_B.
+const ANIM_RUN := "Running_A"
+const ANIM_IDLE := "Idle_A"
+## Squared horizontal speed above which the enemy counts as moving.
+const ANIM_MOVING_SPEED_SQ := 0.05
+
+## One AnimationLibrary shared by every enemy, built once on first use. The
+## Animation resources inside are shared by reference, so 35 skeletons cost one
+## copy between them rather than 35.
+static var _shared_anim_library: AnimationLibrary = null
+
 @export_group("Movement")
 ## Ground speed in units per second. The bench is ~220 units end to end.
 @export var move_speed := 8.0
@@ -143,6 +176,10 @@ const UNSTICK_COOLDOWN := 0.4
 ## degrades to "no assist" rather than crashing on load.
 @onready var feeler_left: RayCast3D = get_node_or_null("FeelerLeft") as RayCast3D
 @onready var feeler_right: RayCast3D = get_node_or_null("FeelerRight") as RayCast3D
+## Drives the skeleton. The node is added by Enemy.tscn as a child of `Model`, so
+## its default root_node of ".." resolves to the model root -- exactly the layout
+## the animation packs were exported with, which is why their bone paths resolve.
+@onready var anim_player: AnimationPlayer = get_node_or_null("Model/AnimationPlayer") as AnimationPlayer
 
 ## True only while the match is actually running. Mirrors GameState (the global
 ## game manager) which owns the real phase; kept as a plain flag here so the
@@ -177,6 +214,10 @@ var _slow_timer := 0.0
 var _slow_factor := 1.0
 ## Seconds left before unstuck recovery may throw another dodge.
 var _dodge_cooldown := 0.0
+## Counts down to the next line-of-sight raycast. Seeded randomly per enemy so a
+## wave that spawns together does not all cast on the same frame and produce a
+## periodic spike -- the whole point is to spread the cost, not just reduce it.
+var _los_timer := randf_range(0.0, LOS_INTERVAL)
 var _spawn_transform := Transform3D.IDENTITY
 # move_and_slide() must run exactly once per physics frame. With avoidance on,
 # the move happens in the velocity_computed callback, and this guards against a
@@ -204,6 +245,8 @@ func _ready() -> void:
 	for feeler in [feeler_left, feeler_right]:
 		if feeler != null:
 			feeler.add_exception(self)
+	if anim_player != null and not anim_player.has_animation_library(""):
+		anim_player.add_animation_library("", _shared_animations())
 	GameState.phase_changed.connect(_on_phase_changed)
 	# The navigation map is not built until the first physics sync, so asking
 	# for a path in _ready() returns nothing.
@@ -224,6 +267,9 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y -= gravity * delta
 	_slow_timer = maxf(_slow_timer - delta, 0.0)
+	# Before the phase gate, so a skeleton standing in PREPARATION still idles
+	# rather than freezing on frame 0 of whatever it last played.
+	_update_animation()
 
 	# Preparation: hold still and stay blind. Still driven (with zero velocity)
 	# so gravity settles it onto the bench.
@@ -271,6 +317,59 @@ func _physics_process(delta: float) -> void:
 		agent.velocity = desired
 	else:
 		_drive(desired, delta)
+
+
+## Builds the shared AnimationLibrary from the two Rig_Medium packs, once.
+##
+## The packs import as PackedScenes, not AnimationLibrary resources, so the only
+## way to reach their animations is to instantiate one and take them off its
+## AnimationPlayer. The temporary node is freed immediately; Animation is a
+## refcounted Resource, so the animations outlive it.
+static func _shared_animations() -> AnimationLibrary:
+	if _shared_anim_library != null:
+		return _shared_anim_library
+
+	var library := AnimationLibrary.new()
+	for path in [ANIM_PACK_MOVEMENT, ANIM_PACK_GENERAL]:
+		var packed := load(path) as PackedScene
+		if packed == null:
+			push_warning("[Enemy] animation pack missing: %s" % path)
+			continue
+		var temp := packed.instantiate()
+		var source := temp.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		if source != null:
+			for anim_name in source.get_animation_list():
+				if not library.has_animation(anim_name):
+					library.add_animation(anim_name, source.get_animation(anim_name))
+		temp.free()
+
+	# The packs import one-shot. Without this the skeleton runs for 0.8 s and
+	# then freezes mid-stride, which reads as the animation being broken.
+	for looping in [ANIM_RUN, ANIM_IDLE]:
+		if library.has_animation(looping):
+			library.get_animation(looping).loop_mode = Animation.LOOP_LINEAR
+
+	_shared_anim_library = library
+	return _shared_anim_library
+
+
+## Picks the run or idle clip and matches playback speed to stasis.
+##
+## Uses HORIZONTAL speed, not `velocity.length_squared()`: velocity carries
+## gravity, so a stationary enemy that is falling or settling would otherwise be
+## judged to be running on the spot.
+func _update_animation() -> void:
+	if anim_player == null:
+		return
+	# A stasis-slowed skeleton should visibly move in slow motion, not mime a
+	# full-speed run while sliding along at 40%.
+	anim_player.speed_scale = _slow_factor if _slow_timer > 0.0 else 1.0
+
+	var moving := Vector2(velocity.x, velocity.z).length_squared() > ANIM_MOVING_SPEED_SQ
+	var wanted := ANIM_RUN if moving else ANIM_IDLE
+	if anim_player.current_animation == wanted or not anim_player.has_animation(wanted):
+		return
+	anim_player.play(wanted)
 
 
 ## Kills the player if this enemy has physically reached them.
@@ -323,14 +422,31 @@ func _line_of_sight_fallback(desired: Vector3) -> Vector3:
 ## Steers around a corner the agent is about to clip.
 ##
 ## Navmesh paths cut corners, and RVO only knows about other agents, so the
-## capsule scrapes along prop edges it was routed past. The angled feelers see
-## the edge before the body reaches it and bend the desired direction away.
+## capsule scrapes along prop edges it was routed past. The angled feelers catch
+## the edge and bend the desired direction away from it.
+##
+## **The feelers are only consulted once the enemy is actually being impeded**
+## (`_stuck_time` past `FEELER_STUCK_THRESHOLD`). That is a cost trade, and it
+## does change behaviour: the assist used to fire on the frame a feeler touched
+## an edge, which let it steer BEFORE the capsule reached the corner. It is now
+## reactive -- the enemy grazes the prop first, and slides once the contact has
+## cost it ground. Feelers are `enabled = false` in the scene and force-updated
+## here, so a skipped frame really does skip two raycasts per enemy rather than
+## just skipping a read of a cast that happened anyway.
 func _corner_slide(desired: Vector3) -> Vector3:
 	if desired.length_squared() <= 0.01 or not is_on_floor():
 		return desired
+	if _stuck_time <= FEELER_STUCK_THRESHOLD:
+		return desired
 
-	var left_hit := feeler_left != null and feeler_left.is_colliding()
-	var right_hit := feeler_right != null and feeler_right.is_colliding()
+	var left_hit := false
+	var right_hit := false
+	if feeler_left != null:
+		feeler_left.force_raycast_update()
+		left_hit = feeler_left.is_colliding()
+	if feeler_right != null:
+		feeler_right.force_raycast_update()
+		right_hit = feeler_right.is_colliding()
 	# Exactly one side blocked is a corner to slide along. Both blocked is a dead
 	# end rather than a corner -- deflecting there only picks which wall to grind
 	# against, so leave that to unstuck recovery. Neither blocked needs nothing.
@@ -425,9 +541,14 @@ func has_line_of_sight() -> bool:
 ## Aggro state machine. Sight starts the chase immediately; losing it only ends
 ## the chase once aggro_memory has run out.
 func _update_aggro(delta: float) -> void:
-	var visible_now := has_line_of_sight()
-	_sees_player = visible_now
-	if visible_now:
+	# The raycast runs at most every LOS_INTERVAL; every other frame reuses the
+	# cached answer. See the const for why the staleness is harmless.
+	_los_timer -= delta
+	if _los_timer <= 0.0:
+		_sees_player = has_line_of_sight()
+		_los_timer = LOS_INTERVAL
+
+	if _sees_player:
 		_seen_for = aggro_memory
 	else:
 		_seen_for = maxf(_seen_for - delta, 0.0)

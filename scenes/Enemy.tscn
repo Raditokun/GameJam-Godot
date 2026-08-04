@@ -1,6 +1,7 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/Enemy.gd" id="1_enemy"]
+[ext_resource type="PackedScene" path="res://3DModels/KayKit_Skeletons_1.1_FREE/KayKit_Skeletons_1.1_FREE/characters/gltf/Skeleton_Minion.glb" id="2_minion"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_detect"]
 radius = 250.0
@@ -9,14 +10,6 @@ radius = 250.0
 radius = 0.4
 height = 1.8
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_enemy"]
-radius = 0.4
-height = 1.8
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_enemy"]
-albedo_color = Color(0.9, 0.25, 0.25, 1)
-roughness = 0.7
-
 [node name="Enemy" type="CharacterBody3D"]
 script = ExtResource("1_enemy")
 
@@ -24,14 +17,14 @@ script = ExtResource("1_enemy")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
 shape = SubResource("CapsuleShape3D_enemy")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
-mesh = SubResource("CapsuleMesh_enemy")
-surface_material_override/0 = SubResource("StandardMaterial3D_enemy")
+[node name="Model" parent="." instance=ExtResource("2_minion")]
+transform = Transform3D(-0.831, 0, 0, 0, 0.831, 0, 0, 0, -0.831, 0, 0, 0)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="Model"]
 
 [node name="DetectionArea" type="Area3D" parent="."]
 collision_layer = 0
-collision_mask = 1
+collision_mask = 2
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="DetectionArea"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
@@ -45,11 +38,13 @@ collision_mask = 1
 
 [node name="FeelerLeft" type="RayCast3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 0.4, 0)
+enabled = false
 target_position = Vector3(-0.8, 0, -1)
 collision_mask = 1
 
 [node name="FeelerRight" type="RayCast3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0.4, 0)
+enabled = false
 target_position = Vector3(0.8, 0, -1)
 collision_mask = 1
 

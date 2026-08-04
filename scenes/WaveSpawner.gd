@@ -52,7 +52,7 @@ signal enemies_cleared(count: int)
 ## Seconds between waves.
 @export var wave_interval := 45.0
 ## Hard ceiling on live enemies, so a long round cannot melt the frame budget.
-@export var max_live_enemies := 120
+@export var max_live_enemies := 35
 
 @export_group("Safe Zone")
 ## A spawn point closer than this to the player is rejected and another is picked.
@@ -192,6 +192,12 @@ func _on_phase_changed(new_phase: int) -> void:
 
 func _apply_phase(new_phase: int) -> void:
 	if new_phase == GameState.Phase.ACTION:
+		# The Archmage duel is a one-on-one fight. start_boss_fight() enters ACTION
+		# to bring the weapons out, and without this guard that would immediately
+		# flood the bench with the very minions it just cleared.
+		if GameState.boss_fight:
+			_timer.stop()
+			return
 		_start_waves()
 		return
 	# PREPARATION: stop the clock, rewind to wave 1 and hand the player an empty bench.

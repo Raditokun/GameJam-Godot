@@ -7797,11 +7797,8 @@ transform = Transform3D(74.76889, -0.36042866, 0.19019425, 0.360564, 74.76911, -
 physics_material_override = SubResource("PhysicsMaterial_table")
 freeze = true
 
-[node name="Kitchen" parent="." instance=ExtResource("2_kitchen")]
+[node name="Kitchen" parent="." unique_id=796630869 instance=ExtResource("2_kitchen")]
 transform = Transform3D(74.76889, 0, 0, 0, 74.76889, 0, 0, 0, 74.76889, 50.5054, 0, -4.5812955)
-
-[node name="KitchentableBLarge" parent="Kitchen" index="4"]
-visible = false
 
 [node name="Player" parent="." unique_id=1742842863 instance=ExtResource("1_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -57.968517, 73.06331, 66.22568)

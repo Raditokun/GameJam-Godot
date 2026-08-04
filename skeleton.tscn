@@ -1,0 +1,28 @@
+[gd_scene format=3 uid="uid://bhjfif0bflbs0"]
+
+[ext_resource type="PackedScene" uid="uid://dhq1j6h8eago3" path="res://3DModels/KayKit_Skeletons_1.1_FREE/KayKit_Skeletons_1.1_FREE/characters/gltf/Skeleton_Minion.glb" id="1_uaaco"]
+[ext_resource type="ArrayMesh" uid="uid://cnrcpqgee2p4r" path="res://3DModels/KayKit_Skeletons_1.1_FREE/KayKit_Skeletons_1.1_FREE/assets/obj/Skeleton_Blade.obj" id="2_ymvsc"]
+[ext_resource type="ArrayMesh" uid="uid://vtaj8smau3xu" path="res://3DModels/KayKit_Skeletons_1.1_FREE/KayKit_Skeletons_1.1_FREE/assets/obj/Skeleton_Staff.obj" id="3_rwpf0"]
+[ext_resource type="ArrayMesh" uid="uid://cv32mkfm8d8yb" path="res://3DModels/KayKit_FantasyWeaponsBits_1.0_FREE/KayKit_FantasyWeaponsBits_1.0_FREE/Assets/obj/staff_B.obj" id="4_ew5mc"]
+[ext_resource type="ArrayMesh" uid="uid://0o0kif0mnvma" path="res://3DModels/KayKit_FantasyWeaponsBits_1.0_FREE/KayKit_FantasyWeaponsBits_1.0_FREE/Assets/obj/wand_A.obj" id="5_vqc8v"]
+
+[node name="Skeleton" type="Node3D" unique_id=1053967872]
+
+[node name="Skeleton_Minion" parent="." unique_id=1174044449 instance=ExtResource("1_uaaco")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.044630468, 0, -0.1630261)
+
+[node name="SkeletonBlade" type="MeshInstance3D" parent="." unique_id=1851573372]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.26964295, 1.1651536, 4.2274117)
+mesh = ExtResource("2_ymvsc")
+
+[node name="SkeletonStaff" type="MeshInstance3D" parent="." unique_id=447840129]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.7842475, 0, 0.5798874)
+mesh = ExtResource("3_rwpf0")
+
+[node name="StaffB" type="MeshInstance3D" parent="." unique_id=316835809]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.106738806, 0, 4.7872458)
+mesh = ExtResource("4_ew5mc")
+
+[node name="WandA" type="MeshInstance3D" parent="." unique_id=4711113]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3632944, 0, 5.156313)
+mesh = ExtResource("5_vqc8v")

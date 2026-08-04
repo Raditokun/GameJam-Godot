@@ -115,13 +115,35 @@ early during PREPARATION, so click / wheel / reach all belong to BuildMode.
     has its top face at local y = 0 (centre −0.1, `size.y` **1.0**, scale 0.2).
     `CSGBox3D.size` defaults to 1, not 2 — assuming 2 puts the whole room 7.5
     units into the ground.
-  - **`Kitchen/KitchentableBLarge` is hidden** by an instance override. The
-    kitchen scene ships with its own `kitchentable_B_large` at the origin, and
-    `meja` (a `kitchentable_A_large`) is already the workbench standing in
-    exactly that spot — without the override the two tables intersect.
-  - The kitchen is **purely decorative**: its CSG floor/ceiling have
-    `use_collision` off and the KayKit gltf instances carry no colliders, so
-    nothing here collides, bakes into the navmesh, or costs physics.
+  - The kitchen is **purely decorative**: nothing under `Kitchen` has collision
+    at all (measured: 0 `PhysicsBody3D`, 0 CSG shapes with `use_collision`), so
+    it never collides, bakes into the navmesh, or costs physics. Anything that
+    looks like the room blocking the player is a *visual* overlap, never a
+    physical one.
+  - **Three nodes in `kitchen.tscn` are hidden (`visible = false`), and all three
+    have to stay that way**:
+    - `CSGBox3D` and `CSGBox3D2` — the room's floor and ceiling slabs. Untextured
+      CSG boxes 10.2 units square, which at 74.8× become **763-unit teal slabs**
+      that swamp the view from the bench. The floor also sits at y ≤ 0 where
+      `meja`'s legs reach down to y = −2, so it cut through the bottom of the
+      table.
+    - `KitchentableBLarge` — the kitchen ships its own `kitchentable_B_large` at
+      its origin, and `meja` (a `kitchentable_A_large`) is already the workbench
+      standing in exactly that spot. Left visible it sits **inside the play
+      volume**, y −0.28 … 74.77 across the whole bench: two different tables
+      occupying the same space, which reads as the room clipping the workbench.
+    - These are hidden **in `kitchen.tscn` itself, not by an instance override in
+      `Main.tscn`.** An override was tried first and did not survive — opening
+      `Main.tscn` in the editor and saving dropped the hand-written
+      `[node name="…" parent="Kitchen" index="4"]` block silently, and the table
+      reappeared. Index-based overrides into an instanced scene are also
+      invalidated by adding nodes to that scene. Hiding at the source is the only
+      thing that holds.
+  - **Consequence of hiding the floor slab:** the only ground left is `Main.tscn`'s
+    own `Floor` CSGBox, which is 292 × 224 at y = 0 — much smaller than the
+    763-unit room. Beyond it there is now nothing under the walls. It is far below
+    the bench and out of the player's normal view, but it is why the room looks
+    open-bottomed from a high `PrepCamera` angle.
   - **Do not re-run `tools/BulkPropSetup.gd` without adding `Kitchen` to
     `PropConverter.SKIP_NAMES`.** `Kitchen` is a plain Node3D containing meshes,
     so `_skip_reason()` sees a conversion candidate and would wrap the entire
@@ -206,6 +228,15 @@ tactical view of the bench, plus the mouse drag-and-drop tool that goes with it.
   having its collision switched off: the exclusion takes effect immediately,
   where a `collision_layer` change has to be deferred and leaves a frame where
   the object blocks its own placement ray.
+- **A held prop also gets a collision exception with the PLAYER**, added in
+  `_try_grab()` and removed in `_drop()`. The player is still standing on the
+  bench during PREPARATION and the carry spring can swing a prop hard enough to
+  barge them off it — with the tabletop at y ≈ 73.6 and `FALL_DEATH_Y` at 65,
+  being shoved off the edge by your own furniture is a death. The prop passes
+  through them while in hand and turns solid again the moment it is released, so
+  a placed piece still blocks the player like any other part of the maze.
+  `_resolve_player()` finds and caches the body by the `player_group` export, so
+  the camera needs no node path out of itself.
 - `_lowest_point()` measures how far a body's lowest collision point sits below
   its origin (via `shape.get_debug_mesh().get_aabb()`, which works for every
   shape type) so the object rests ON the surface instead of sinking into it.
@@ -245,8 +276,8 @@ tactical view of the bench, plus the mouse drag-and-drop tool that goes with it.
     `_update_settling` resolving a freed instance id.
   - Guarded with `is_queued_for_deletion()` — a freed node stays in its group
     until the end of the frame, so the next sweep would otherwise free it twice.
-- Other tunables: `drag_group`, `pick_distance` (900), `refreeze_speed`,
-  `refreeze_delay`.
+- Other tunables: `drag_group`, `player_group`, `pick_distance` (900),
+  `refreeze_speed`, `refreeze_delay`.
 
 ### `scenes/Player.tscn` (`CharacterBody3D`, script `Player.gd`)
 ```
@@ -263,6 +294,9 @@ Player (CharacterBody3D)
     ├── StatsLabel     -- velocity/pos/angle/bhop-gain debug readout
     ├── PhaseLabel     -- current phase, attempt number and that phase's keys
     ├── GunBar         -- ProgressBar, Stasis Cannon charge; hidden when sword equipped
+    ├── PlayerHealthBar -- ProgressBar, 100 HP; hidden except during the boss duel
+    ├── StaffBar       -- ProgressBar, Staff of Quartz heavy-attack charge
+    ├── BossHealthBar  -- ProgressBar + "ARCHMAGE MALAKOR" label, hidden until the duel
     ├── Crosshair      -- drawn Control (Crosshair.gd), auto-hides when mouse not captured
     ├── Minimap        -- drawn Control (Minimap.gd), top-left tactical radar
     └── YouDiedLabel   -- centred "YOU DIED" retry prompt, hidden unless dead
@@ -283,6 +317,21 @@ The "die" half of the die-and-retry loop, which until now had no trigger at all.
   bench is near it. Checked before the `is_dead` branch so the fall registers on
   the frame it happens, and gated on `not is_dead` so a corpse still sinking
   cannot re-trigger (`die()` is idempotent regardless).
+- **`take_damage(amount)` spends `health` (100).** Only the Archmage's spells use
+  it — a minion that reaches the player still calls `die()` outright, because
+  contact with the swarm is lethal by design and routing it through health would
+  mean surviving a skeleton that has already caught you. Shake scales with the
+  size of the hit, so a splash graze reads differently from a direct spell.
+  `_clear_death()` restores full health, or the second attempt would start
+  already beaten. `shake(amount)` is public so the boss can rattle the camera on
+  a cast or a landing, and takes the max rather than overwriting a bigger shake.
+- **`HUD/PlayerHealthBar` is hidden except during the duel**, via
+  `_set_health_bar_visible()`. It is `visible = false` in the scene, hidden again
+  by `_ready()` and by `_clear_death()` (which is the path `_on_round_reset()`
+  takes), and raised only by `begin_boss_fight()`. Since nothing but the Archmage
+  spends health, a permanently visible 100/100 bar would be HUD noise through the
+  whole build-and-survive loop *and* would imply a damage model the rest of the
+  game does not have.
 - **`Enemy._check_contact_kill()`** calls `Player.die()` when a **chasing** enemy
   gets within `KILL_DISTANCE` (1.15) of the player. Both capsules are radius 0.4
   so they physically stop ~0.8 apart and can never close further; 1.15 fires
@@ -425,7 +474,37 @@ files still carry the "Pistol" name from when it was one)
   and went with the reload system, so the cannon currently fires with no recoil
   or visual kick at all. Worth adding.
 
-**Slot 2 — Sword** (`scenes/sword.tscn`, script `Sword.gd`, wraps a `.blend`
+**Slot 2 — Staff of Quartz** (`scenes/StaffQuartz.tscn`, script `StaffQuartz.gd`)
+— the boss-fight weapon, built around `staff_A.obj`.
+- **Both attacks are projectiles, not hitscan.** That is the design: the duel is
+  about leading a moving target and dodging return fire, which needs travel time.
+- **LMB** (`fire`) — a fast bolt, `bolt_damage` **15** on a `bolt_cooldown` of
+  0.18 s. The chip damage. **RMB** (`fire_secondary`) — a heavy orb,
+  `heavy_damage` **40** on a `heavy_cooldown` of **3.0 s**. The commitment.
+  That is ~33 primary hits or ~13 heavy casts to take the boss's 500 HP. The
+  first pass shipped 5/25, which needed 100 clean hits — a slog, not a fight.
+- **First-person pose** is set on the instance in `Player.tscn`, not in
+  `StaffQuartz.tscn`: position (0.35, −0.35, −0.6), `rotation_degrees`
+  (−12, 18, 0) relative to `Head/Camera3D` — held low and right, angled across
+  the view. Note the 12-float `Transform3D` in the .tscn stores basis **rows**
+  (see §5); writing the columns yields the transpose, which for a rotation is its
+  inverse and reads back as roughly negated angles.
+- `cooldown_bar` (→ `HUD/StaffBar`) shows the **heavy** charge; the primary's
+  0.18 s is too short to read as a meter.
+- Shots leave along the **camera's** forward, not the staff's own −Z: the staff is
+  posed off to one side of the screen, so its local axis misses the crosshair.
+- Damage lands through `has_method("take_damage")`, so the staff knows nothing
+  about the boss and shooting scenery is a no-op. Projectiles are an inner
+  `Bolt extends Area3D` class — layer 0 / mask 1, so they detect the world and
+  nothing ever tests against them — with a `projectile_lifetime` (4 s) so a
+  missed shot cannot fly away forever.
+- **Visuals come from `Spell Effects (Free)`**, carried as a child of the bolt:
+  the primary uses `attack_projectile.tscn` (particle head, scattered glow and a
+  shader trail) and leaves `attack_impact.tscn` behind; the heavy uses
+  `spell_2_orb.tscn` and `spell_2_impact.tscn`. See §2i for the rules these rigs
+  impose.
+
+**Slot 2 (legacy) — Sword** (`scenes/sword.tscn`, script `Sword.gd`, wraps a `.blend`
 katana model in `3DModels/`)
 - Melee: reuses the **camera's** RayCast3D (not a locally-aimed one — the
   Sword node is rotated ~84° on Y in the scene, so its own -Z does not point
@@ -481,8 +560,55 @@ dragged and the mesh has not caught up.
   own collider is on layer 1 and therefore filtered out by the bake mask, so it
   contributes an obstacle without contributing walkable floor.
 
-**`scenes/Enemy.tscn` / `Enemy.gd`** — `CharacterBody3D` capsule (r 0.4, h 1.8,
-red) with a `NavigationAgent3D` (avoidance on, agent radius 0.5).
+**`scenes/Enemy.tscn` / `Enemy.gd`** — `CharacterBody3D` (capsule collider r 0.4,
+h 1.8) with a `NavigationAgent3D` (avoidance on, agent radius 0.5) and a
+`Model` — an instance of KayKit's **`Skeleton_Minion.glb`**. The red prototype
+capsule mesh is gone.
+
+**The skeleton and its animations (`Model`, `anim_player`).**
+- `Model` is scaled **0.831**, which takes the glb's native 2.166-unit height to
+  exactly the capsule's 1.8 with feet at local y = 0 — verified as spanning
+  0.000 … 1.800 against a capsule spanning 0.000 … 1.800.
+- **`Model` is also rotated `(0, 180, 0)`**, because the skeleton is authored
+  facing **+Z** while everything else here treats **−Z** as forward (`_drive()`
+  aims yaw with `atan2(-x, -z)`, matching the player capsule). Without it the
+  skeleton moonwalks — it runs backwards along its own path. Note this means the
+  model's *local* −Z now points along the body's +Z, so **do not sanity-check the
+  facing by comparing local axes**; it looks inverted and is correct. The
+  reliable check is the geometry: the `Eyes` mesh sits at local z −0.216, ahead of
+  the `Cloak` at −0.012, i.e. the face leads along the body's −Z forward.
+- **`Skeleton_Minion.glb` ships no AnimationPlayer and no animations at all.**
+  KayKit keeps them in per-rig packs, and the two that matter are in *different
+  files*: `Running_A` is in `Rig_Medium_MovementBasic.glb`, `Idle_A` is in
+  `Rig_Medium_General.glb`. Both animate `Rig_Medium/Skeleton3D` with the same 23
+  bones the character carries, so their tracks resolve against the model
+  untouched.
+- **There is no animation called `Idle`, `Walk` or `Run`.** The pack names are
+  `Idle_A`/`Idle_B`, `Walking_A/B/C`, `Running_A/B`. `ANIM_RUN` and `ANIM_IDLE`
+  hold the real names.
+- The `AnimationPlayer` is added by `Enemy.tscn` as a child of `Model`, so its
+  default `root_node` of `".."` resolves to the model root — the same layout the
+  packs were exported with, which is *why* their bone paths resolve. Move it
+  elsewhere and the skeleton silently stands in T-pose while the player reports
+  it is playing.
+- `_shared_animations()` builds **one static `AnimationLibrary` for all enemies**.
+  The packs import as PackedScenes rather than AnimationLibrary resources, so the
+  only route is to instantiate one, take the animations off its AnimationPlayer
+  and free the temporary; `Animation` is refcounted so they outlive it. 35
+  skeletons share one copy.
+- It also forces `loop_mode = LOOP_LINEAR` on the run and idle clips. **The packs
+  import one-shot** — without this the skeleton runs for 0.8 s then freezes
+  mid-stride, which reads as the animation being broken rather than unlooped.
+- `_update_animation()` picks run vs idle from **horizontal** speed
+  (`ANIM_MOVING_SPEED_SQ` 0.05), not `velocity.length_squared()`: velocity carries
+  gravity, so a stationary enemy that is falling or settling would otherwise mime
+  a run on the spot. It also sets `speed_scale` to `_slow_factor` while stasis is
+  active, so a slowed skeleton visibly moves in slow motion instead of running
+  full-speed while sliding at 40%.
+- Measured: 35 animated skeletons cost 5.61 ms/frame of physics against 5.83 for
+  the old capsules — no regression. **Caveat: an `AnimationPlayer` updates on the
+  idle frame, not the physics frame, and headless has no rendering, so the
+  skinning and draw cost of 35 skeletons is NOT in that number.**
 - **The agent radius tracks the capsule, not the clutter.** It was 1.2 against a
   0.4 capsule, which inflated every enemy's RVO footprint to three times its real
   size and made the swarm refuse gaps between props it physically fits through.
@@ -601,6 +727,16 @@ player.
   reaches it. Both take `add_exception(self)` in `_ready()` — they start inside
   the capsule's own radius, and without it the enemy reads its own body as the
   corner and steers in circles.
+- **The feelers are `enabled = false` and force-updated on demand**, and
+  `_corner_slide()` only consults them once `_stuck_time` passes
+  `FEELER_STUCK_THRESHOLD` (0.08 s). **This is a cost/behaviour trade, and the
+  behaviour side is a real loss:** the assist used to fire on the frame a feeler
+  touched an edge, steering *before* the capsule reached the corner. It is now
+  reactive — the enemy grazes the prop first and only slides once that contact
+  has cost it ground. Note the rays must be `enabled = false` for the gate to
+  save anything: an enabled RayCast3D casts every physics frame whether or not
+  anything reads `is_colliding()`, so gating only the read would have cost
+  behaviour and bought nothing.
 - **`_corner_slide()`** deflects by `global_transform.basis.x` (the enemy's right)
   scaled by `CORNER_SLIDE_STRENGTH` (0.75), then renormalises to speed — so it is
   a blend weight, not an absolute, and can never overpower the direction the agent
@@ -657,15 +793,36 @@ duration is what a player expects from re-applying a debuff. `is_slowed()` and
   `chase_repath_interval`, `chase_arrive_distance` (0.5 — doubles as the
   direct-pursuit threshold), `patrol_arrive_distance`.
 
-**Performance risk, unmeasured.** Going from r 45 to r 250 makes each enemy's
-`DetectionArea` cover the whole bench, and its mask is 1 — the same layer the
-~500 props sit on. At `max_live_enemies` (120) that is on the order of 60,000
-area-overlap pairs the broadphase has to maintain, plus a 250-unit `SightRay`
-cast per enemy per frame instead of a 45-unit one. The scene was already sitting
-exactly on the 16.7 ms budget (§2e), so **this wants profiling with a full wave
-before it is trusted.** The clean fix if it does bite is to put the player on a
-dedicated collision layer and narrow the DetectionArea mask to only that, so the
-props stop being tested at all.
+**The DetectionArea is on collision layer 2, and that is the single most
+important performance fact about the enemy.** It was mask 1 — the layer all ~500
+props sit on — so every enemy's 250-unit sphere maintained overlap pairs with the
+entire bench. Measured on the real scene, this one property was **79% of the
+whole physics frame**:
+
+| 35 enemies | physics ms/frame | fps from physics alone |
+|---|---|---|
+| DetectionArea on mask 1 (all props) | 30.46 | 33 |
+| DetectionArea on mask 2 (player only) | **5.83** | **172** |
+
+At 120 enemies it was worse still — 74.8 ms (13 fps), with Jolt logging *"manifold
+cache exceeded capacity"* and *"body pair cache exceeded capacity"*; after the fix
+120 enemies run at 16.45 ms with no cache overflow at all.
+
+It works because `Player.tscn`'s root now has `collision_layer = 3` — layers 1
+**and** 2. Layer 1 membership is load-bearing and must stay: `SightRay`, the
+feelers, the weapon rays and ordinary prop collision all mask layer 1. Layer 2 is
+the private channel the DetectionArea listens on, so nothing else is ever tested
+against it. **If you ever move the player off layer 1, line of sight silently
+stops working**; if you put anything else on layer 2, every enemy starts tracking
+it as the player.
+
+**Line-of-sight raycasts are staggered.** `_update_aggro()` only calls
+`has_line_of_sight()` every `LOS_INTERVAL` (0.12 s) and reuses the cached
+`_sees_player` in between. `_los_timer` is seeded `randf_range(0.0, LOS_INTERVAL)`
+per enemy, so a wave that spawns together does not all cast on the same frame and
+produce a periodic spike. 0.12 s is far below `aggro_memory` (2.0 s), so the state
+cannot flicker from the staleness — the worst case is noticing the player about 7
+frames late.
 
 **Known issue, not yet fixed:** `_ready()` sets `agent.max_speed = move_speed`,
 but a chasing enemy asks for `move_speed * chase_speed_scale`. With avoidance on
@@ -699,6 +856,132 @@ gate and cover still is. Direct pursuit returns full speed at 100 units and at
 2 units, passes the input straight through inside `MIN_CHARGE_OFFSET`, and leaves
 PATROL untouched.
 
+### 2h. Archmage Boss Fight (`scenes/BossMage.gd`, `GameState.start_boss_fight()`)
+
+A one-on-one duel that replaces the swarm, and **the last act of a round**: it is
+entered by collecting all ten coins (see below), not by a debug key. Where the
+minions are a crowd problem the maze solves, **Archmage Malakor** is a single
+500 HP target that fights back at range, so the fight is dodging and marksmanship
+rather than layout.
+
+**`scenes/BossMage.tscn`** — `CharacterBody3D`, capsule r 1.0 × h 4.5 centred at
+y 2.25, with `Skeleton_Mage.glb` as `Model` at scale **1.711** and the same
+`(0, 180, 0)` rotation the minions need. The same two Rig_Medium packs drive
+idle/run.
+- **The scale is 1.711, not the minions' 0.831 × 2.5.** `Skeleton_Mage` is
+  **2.630** units tall natively where `Skeleton_Minion` is 2.166 — the two
+  characters are not the same size, so reusing the minion's factor made the boss
+  5.46 tall against a 4.5 capsule, with its head outside its own hitbox.
+  4.5 / 2.630 = 1.711 gives exactly 4.5, which *is* 2.5× a 1.8-unit minion.
+  Verified as spanning 0.000 … 4.500 against a capsule spanning the same.
+- **`Skeleton_Staff.obj` hangs off a `BoneAttachment3D` on bone `handslot.r`**
+  (index 18), parented under `Model/Rig_Medium/Skeleton3D`, so it tracks the arm
+  through the run and idle animations instead of floating beside the body.
+  - **The bone names are lowercase and `handslot.*` is the one you want.** The rig
+    has `hand.l`/`hand.r` *and* `handslot.l`/`handslot.r`; the handslot pair are
+    KayKit's purpose-built attachment points for a held item. There is no
+    `hand.R` — capitalised names do not resolve and the attachment silently sits
+    at the model origin.
+  - Measured: the attachment resolves to local (1.51, 1.80, 0) — out at the hand,
+    not at the origin — and the staff comes out 3.6 units long against the
+    4.5-unit mage.
+- **Health 500**, `take_damage(amount)`, signals `health_changed(current, max)`
+  and `died`. It joins group **`boss`**.
+- **Spell attack** every `spell_interval` (2.6 s): a `spell_2_orb.tscn` rig tinted
+  crimson (see §2i) travels at `spell_speed` (22), leaving a tinted
+  `spell_2_impact.tscn` burst at the point of contact — which is also the splash
+  centre, so the player can see how close the near-miss was. A direct hit on the player is `spell_damage` **75**;
+  anything else it strikes detonates for `splash_damage` **35** to a player within
+  `splash_radius` (2.5). Splash resolves against the **player group at the impact
+  point**, not a second physics query — the only thing splash should hurt is the
+  player, and a group lookup cannot be fooled by whatever prop absorbed the orb.
+  Casting shakes the player's camera by `cast_shake`.
+- **Crushing leap** every `leap_interval` (9 s): a ballistic arc onto the player's
+  current XZ. Airtime is `2 * leap_rise / gravity` and the horizontal speed falls
+  out of it. **The arc is committed at launch** — the boss does not steer mid-air,
+  which is exactly what makes the leap dodgeable. Landing within `crush_radius`
+  (1.5) of the player calls `player.die()` outright.
+- Between attacks it walks in, stopping at `preferred_distance` (12) so the fight
+  stays at range instead of becoming a shoving match.
+
+**`GameState.start_boss_fight()`** clears the `draggable` and `enemies` groups,
+enters ACTION, spawns the boss at `BOSS_SPAWN` (50.5, 73.6, −4.5), hands the
+player the staff via `Player.begin_boss_fight()` and raises the boss health bar.
+Props go because the duel needs open space: 500 pieces of clutter would make the
+leap unreadable and detonate every orb on scenery.
+- `GameState.boss_fight` gates `WaveSpawner._apply_phase()`. **Without that guard
+  the ACTION switch would immediately re-flood the bench with the minions the
+  fight just cleared.** `CoinSpawner._apply_phase()` is gated the same way, and
+  additionally listens to `boss_fight_started` — see §2g.
+- `reset_round()` frees the boss and clears the flag, so dying drops the player on
+  an empty bench in PREPARATION. It deliberately does **not** auto-restart the
+  duel — a silent respawn loop would be harder to leave than to enter.
+- **`_spawn_host()`** picks `current_scene`, falling back to the player's parent.
+  `current_scene` is null for a scene hosted by hand rather than loaded by the
+  SceneTree, and `current_scene.add_child()` then crashes — which is how every
+  headless probe of this feature would fail. The staff and the orb do the same.
+
+**Collecting all ten coins is the way in, and the only way in.**
+`CoinSpawner._ready()` connects `all_coins_collected` straight to
+`GameState.start_boss_fight()`. So the round now reads as a whole: build the maze
+in PREPARATION, survive the swarm while gathering ten coins in ACTION, and the
+tenth coin sweeps the table and brings out the Archmage.
+- Connected from the CoinSpawner side because the signal lives there and
+  `GameState` is an autoload it can reach; the reverse would have `GameState`
+  hunting for a `CoinSpawner` by node path.
+- `start_boss_fight()` early-returns when `boss_fight` is already true, so a
+  stray second emission cannot put two Archmages on the bench.
+- **The F1 (`boss_debug`) debug shortcut is gone**, along with the
+  `request_boss_fight()` / `_pending_boss_fight` / `notify_gameplay_ready()`
+  machinery that existed only to serve it — including the
+  `change_scene_to_file()` deferral for starting a fight from the menu, which has
+  no purpose now the trigger is in-round. The input action is removed from
+  `project.godot` too.
+
+### 2i. Spell VFX (`3DModels/Spell Effects (Free)/`)
+
+Projectiles and impacts are dressed with the free spell-effect rigs rather than
+the procedural emissive spheres they shipped with. Four scenes are used:
+`attack_projectile` / `attack_impact` (player primary) and `spell_2_orb` /
+`spell_2_impact` (player heavy, and the Archmage's spell). Each is a
+GPUParticles3D rig with shader-driven noise, gradient and flare layers.
+
+**Four things about these assets dictate how they are used:**
+
+1. **Every one of them carries its own script**, and several of their emitters
+   ship `emitting = false` (`attack_impact`'s Sparks, Embers, Smoke and Fire;
+   `spell_2_impact`'s Sparks and Fire). Those scripts are what start the delayed
+   layers, so the scenes are instantiated **whole** — harvesting their particle
+   nodes into a bare Node3D would give a flare and nothing else.
+2. **`attack_projectile.tscn` is a `CharacterBody3D` with a collision shape**, not
+   a plain effect. It is authored on layer 0 / mask 24 and this project uses
+   layer 1, so it is inert here — but `Bolt._ready()` zeroes its layer and mask
+   anyway, because a decorative child has no business in the broadphase. Measured
+   as having no self-motion, so it rides the bolt rather than flying off.
+3. **They do not clean up after themselves.** Impact bursts get a fuse:
+   `create_timer(IMPACT_LIFETIME).timeout.connect(burst.queue_free)`, 0.8 s. Note
+   that clips `attack_impact`'s 2.0 s Embers tail — a burst left standing is a
+   leak, and 0.8 s covers the flare, glow, sparks and most of the fire.
+4. **Impacts are parented to the SCENE, never to the projectile.** The projectile
+   `queue_free()`s on the same frame it hits; a burst parented to it would be
+   destroyed before drawing a particle.
+
+**Tinting must duplicate the material.** `BossMage.SpellOrb.tint()` recolours the
+Archmage's orb and burst to `SPELL_TINT` (1.0, 0.32, 0.12) by duplicating each
+`GPUParticles3D.process_material` and setting its `initial_color` uniform.
+`process_material` is a **shared Resource** loaded once per scene file, so writing
+the uniform in place would turn every `spell_2_orb` in the game crimson —
+including the player's own heavy blast. Verified: after tinting an orb, the
+shared material still reads its authored (0.96, 0.60, 0.16).
+- Only the emitters exposing an `initial_color` uniform are reached (Glow, Sparks,
+  Flare). The `Fire` layer is driven by gradient textures with no colour uniform
+  and keeps its authored look; the tinted layers plus a crimson `OmniLight3D` are
+  what carry the read.
+- Camera shake on a boss impact is not wired separately — it arrives through
+  `Player.take_damage()`, which shakes in proportion to the hit, so it fires on a
+  direct hit and on a splash graze but not on an orb that detonates harmlessly
+  against distant scenery.
+
 ### 2f. Wave Spawning (`scenes/WaveSpawner.gd`)
 
 `Main.tscn/WaveSpawner`, a Node3D. Owns every enemy on the board and is driven entirely
@@ -706,8 +989,11 @@ off `GameState` — no node paths into the round logic.
 
 **The maths.** Wave 1 is `first_wave_size` (5) enemies the instant ACTION begins; every
 `wave_interval` (45 s) another wave arrives carrying `enemies_per_wave` (1) more than the
-last, so 0:45 = 6, 1:30 = 7, 2:15 = 8. `max_live_enemies` (120) caps the board so a long
-round cannot melt the frame budget.
+last, so 0:45 = 6, 1:30 = 7, 2:15 = 8. `max_live_enemies` (**35**) caps the board so a
+long round cannot melt the frame budget — measured 5.83 ms/frame at 35 enemies against a
+16.67 ms budget, leaving roughly 3× headroom for rendering and everything else. 120 now
+measures 16.45 ms, i.e. right on the budget with nothing to spare, which is why the cap
+is well below what the physics alone could survive.
 
 **Phase integration.** Only `phase_changed` is connected, **not** `round_reset` —
 `GameState.reset_round()` emits both, and clearing twice double-reports through
@@ -784,8 +1070,30 @@ synchronised physics frame: the map reports itself synchronised a frame or two b
 NavBaker's region is actually registered in it, so a build that early finds nothing and
 warns.
 
-Signals `coin_collected(collected, total)` and `all_coins_collected` are the hooks for a
-win screen. `all_coins_collected` currently has no listener — winning is not wired yet.
+Signals `coin_collected(collected, total)` and `all_coins_collected`.
+**`all_coins_collected` is the trigger for the Archmage duel** — `_ready()` connects it
+straight to `GameState.start_boss_fight()`, so the tenth coin is the transition into the
+boss fight rather than a win in itself. `_on_coin_collected()` emits it the moment
+`_collected >= coin_count`.
+
+**The Archmage duel is not a collect-a-thon, so the coins get out of the way.**
+`clear_coins()` frees every uncollected coin, rewinds `_collected` and hides the
+`RoundUI/CoinLabel` readout. The boss fight reaches it by **two** routes and both are
+needed:
+- `_apply_phase()` checks `GameState.boss_fight` **before** the ACTION branch and returns
+  early. `start_boss_fight()` enters ACTION to bring the weapons out, and without this
+  guard that would scatter ten coins across the arena and leave the counter on the HUD
+  for the whole fight. It also covers the deferred `_physics_process` build, which calls
+  `_apply_phase` once navigation is ready — including mid-duel, when F1 was pressed from
+  the menu.
+- `GameState.boss_fight_started` is connected as a backstop for a fight begun while the
+  phase is already ACTION, where no `phase_changed` would fire.
+
+`clear_coins()` is idempotent, so both firing is fine. **It is connected with
+`clear_coins.unbind(1)`**: `boss_fight_started` carries the spawned boss and
+`clear_coins()` takes no arguments — a direct connection does not fail when connected,
+it fails at *emit* time with "method expected 0 arguments, but called with 1", so the
+error only ever appears the first time someone starts a boss fight.
 
 ### 2e. Bulk Prop Conversion (`tools/`)
 
@@ -1033,7 +1341,8 @@ build tool, in ACTION they drive the weapons.
 | `crouch` | C / Ctrl | |
 | `walk` | Shift | Slows to `walk_speed`; overridden by crouch if both held |
 | `slot_1` | 1 | Equip Stasis Cannon |
-| `slot_2` | 2 | Equip Sword |
+| `slot_2` | 2 | Equip Staff of Quartz |
+| `fire_secondary` | Right Click | Staff of Quartz: heavy orb, 40 damage, 3 s cooldown |
 | `slot_next` | Mouse wheel down | Action: cycle weapon forward. Preparation: rotate held object |
 | `slot_prev` | Mouse wheel up | Action: cycle weapon backward. Preparation: rotate held object |
 | `fire` | Left Click | Preparation: hold to drag a `draggable` object under the cursor. Stasis Cannon: fire (25 s cooldown). Sword: melee swing. Carrying: throw the prop |
@@ -1120,6 +1429,19 @@ undone, verification that was or was not run. Omit the line if there is nothing.
   `get_debug_mesh().get_aabb()` against 5.1 ms reading `size` / `points` /
   `radius` directly, for answers identical to 4 decimal places. Anything that
   measures shapes in bulk should read the parameters.
+- **An `Area3D` whose mask includes the layer your scenery is on is O(agents ×
+  scenery), and it is easy to miss because nothing errors.** Each enemy's
+  `DetectionArea` is a 250-unit sphere that was masking layer 1 — the same layer
+  ~500 props sit on — so the broadphase maintained a pair for every enemy against
+  every prop. Measured 79% of the entire physics frame at 35 enemies (30.46 →
+  5.83 ms once masked to a player-only layer), and at 120 enemies Jolt logged
+  *"manifold cache exceeded capacity"* / *"body pair cache exceeded capacity"*,
+  which is the tell. Give the thing being detected its own layer and mask only
+  that.
+- **An enabled `RayCast3D` casts every physics frame whether or not anything
+  reads it.** Gating the `is_colliding()` call saves nothing at all — the cost is
+  in the update, not the read. To actually skip the work, set `enabled = false`
+  and call `force_raycast_update()` on the frames you care about.
 - **`NavigationObstacle3D.avoidance_enabled` is on by default and is not free.**
   Every enabled obstacle joins the RVO simulation each frame whether or not any
   agent is near it. At 500 obstacles that measured 34.8 ms/frame against a

@@ -1,0 +1,48 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scenes/BossMage.gd" id="1_boss"]
+[ext_resource type="PackedScene" path="res://3DModels/KayKit_Skeletons_1.1_FREE/KayKit_Skeletons_1.1_FREE/characters/gltf/Skeleton_Mage.glb" id="2_mage"]
+[ext_resource type="ArrayMesh" path="res://3DModels/KayKit_Skeletons_1.1_FREE/KayKit_Skeletons_1.1_FREE/assets/obj/Skeleton_Staff.obj" id="3_staff"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_boss"]
+radius = 1.0
+height = 4.5
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_aura"]
+transparency = 1
+albedo_color = Color(0.75, 0.35, 1, 0.25)
+emission_enabled = true
+emission = Color(0.7, 0.3, 1, 1)
+emission_energy_multiplier = 2.0
+
+[node name="BossMage" type="CharacterBody3D"]
+collision_layer = 1
+collision_mask = 1
+script = ExtResource("1_boss")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.25, 0)
+shape = SubResource("CapsuleShape3D_boss")
+
+[node name="Model" parent="." instance=ExtResource("2_mage")]
+transform = Transform3D(-1.711, 0, 0, 0, 1.711, 0, 0, 0, -1.711, 0, 0, 0)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="Model"]
+
+[node name="StaffAttach" type="BoneAttachment3D" parent="Model/Rig_Medium/Skeleton3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+bone_name = "handslot.r"
+bone_idx = 18
+
+[node name="Staff" type="MeshInstance3D" parent="Model/Rig_Medium/Skeleton3D/StaffAttach"]
+mesh = ExtResource("3_staff")
+
+[node name="Aura" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
+light_color = Color(0.75, 0.35, 1, 1)
+light_energy = 2.5
+omni_range = 14.0
+
+[node name="AuraMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.25, 0)
+material_override = SubResource("StandardMaterial3D_aura")

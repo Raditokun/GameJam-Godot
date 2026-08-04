@@ -1,0 +1,190 @@
+[gd_scene format=3 uid="uid://dqxq0ekbdhbie"]
+
+[ext_resource type="Texture2D" uid="uid://c1yfy0gif1hqg" path="res://spell_effects/textures/checkered_pavement_tiles_diff_4k.jpg" id="1_n3s36"]
+[ext_resource type="Texture2D" uid="uid://cjsxps5nbnv8n" path="res://spell_effects/textures/checkered_pavement_tiles_disp_4k.png" id="2_6urkv"]
+[ext_resource type="Texture2D" uid="uid://pcfu2mftsr0d" path="res://spell_effects/textures/checkered_pavement_tiles_nor_gl_4k.png" id="3_gmcfr"]
+[ext_resource type="Texture2D" uid="uid://bhtcjr4rdlkgo" path="res://spell_effects/textures/checkered_pavement_tiles_rough_4k.exr" id="4_s6vga"]
+
+[sub_resource type="GDScript" id="GDScript_n3s36"]
+script/source = "extends Node3D
+
+const ATTACK_PROJECTILE := preload(\"res://spell_effects/attack_projectile.tscn\")
+const ATTACK_IMPACT := preload(\"res://spell_effects/attack_impact.tscn\")
+const SPELL_2_ORB := preload(\"res://spell_effects/spell_2_orb.tscn\")
+const SPELL_2_IMPACT := preload(\"res://spell_effects/spell_2_impact.tscn\")
+
+var orbs := []
+
+func _ready() -> void:
+	pass
+
+func _physics_process(delta: float) -> void:
+	for orb in orbs:
+		process_orb(orb, delta)
+	var i := 0
+	while i < orbs.size():
+		var orb = orbs[i]
+		if orb.has(\"remove\"):
+			orbs.remove_at(i)
+			orb.node.queue_free()
+		else:
+			i += 1
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event.keycode == KEY_SPACE and event.is_pressed():
+		attack(get_node(\"%Attack\").position, get_node(\"%Attack_Target\").position)
+		spell_2(get_node(\"%Spell_2\").position)
+
+func attack(pos: Vector3, target: Vector3) -> void:
+	var projectile := ATTACK_PROJECTILE.instantiate()
+	var dir := (Vector3(target.x, 0.0, target.z) - Vector3(pos.x, 0.0, pos.z)).normalized()
+	projectile.position = pos + Vector3(0.0, 1.0, 0.0) + dir * 1.0
+	projectile.aim(dir)
+	projectile.hit.connect(attack_impact)
+	add_child(projectile)
+
+func attack_impact(_target: Node, hit_position: Vector3) -> void:
+	var impact := ATTACK_IMPACT.instantiate()
+	impact.position = hit_position
+	add_child(impact)
+
+func spell_2(pos: Vector3) -> void:
+	var i := orbs.size()
+	orbs.push_back({
+		\"node\": SPELL_2_ORB.instantiate(),
+		\"range\": Vector2(0, 100),
+		\"hold\": Time.get_ticks_msec() + 150,
+	})
+	orbs.push_back({
+		\"node\": SPELL_2_ORB.instantiate(),
+		\"range\": Vector2(120, 220),
+		\"hold\": Time.get_ticks_msec() + 350,
+	})
+	orbs.push_back({
+		\"node\": SPELL_2_ORB.instantiate(),
+		\"range\": Vector2(240, 340),
+		\"hold\": Time.get_ticks_msec() + 650,
+	})
+	while i < orbs.size():
+		var orb = orbs[i]
+		add_child(orb.node)
+		orb.node.position = pos + Vector3(0, 1.5, 2).rotated(Vector3(0, 1, 0), deg_to_rad(randf_range(orb.range.x, orb.range.y)))
+		orb.enemy = null
+		i += 1
+
+func process_orb(orb: Dictionary, dt: float) -> void:
+	if Time.get_ticks_msec() < orb.hold:
+		return
+	if orb.enemy:
+		orb.time = clampf(orb.time + dt * 2.0, 0.0, 1.0)
+		var t: float = orb.time * orb.time
+		var n: Vector3 = (orb.enemy.global_position + Vector3(0, 1, 0)) - orb.begin_pos
+		if n.length() > 0.5:
+			n = n.normalized() * (n.length() - 0.5)
+		orb.node.global_position = orb.begin_pos + n * t
+		if t >= 1.0:
+			orb.node.stop()
+			orb.remove = true
+			var impact := SPELL_2_IMPACT.instantiate()
+			impact.position = orb.node.global_position
+			add_child(impact)
+	else:
+		orb.enemy = get_node(\"%Spell_2_Target\")
+		orb.time = 0.0
+		if orb.enemy:
+			orb.begin_pos = orb.node.global_position
+
+
+"
+
+[sub_resource type="Environment" id="Environment_bkyto"]
+ambient_light_source = 2
+ambient_light_color = Color(0.22749999, 0.23875, 0.25, 1)
+ssao_enabled = true
+ssao_radius = 0.1
+glow_enabled = true
+glow_bloom = 0.2
+volumetric_fog_enabled = true
+volumetric_fog_albedo = Color(0.2146, 0.24978667, 0.29, 1)
+adjustment_enabled = true
+adjustment_brightness = 1.25
+adjustment_contrast = 1.07
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4iaic"]
+albedo_texture = ExtResource("1_n3s36")
+roughness_texture = ExtResource("4_s6vga")
+normal_enabled = true
+normal_texture = ExtResource("3_gmcfr")
+heightmap_enabled = true
+heightmap_scale = 0.671
+heightmap_texture = ExtResource("2_6urkv")
+uv1_scale = Vector3(5, 5, 5)
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ma032"]
+material = SubResource("StandardMaterial3D_4iaic")
+size = Vector2(100, 100)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_v266o"]
+size = Vector3(100, 2, 100)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_n3s36"]
+size = Vector3(1, 2, 1)
+
+[node name="Node3D" type="Node3D" unique_id=360657144]
+script = SubResource("GDScript_n3s36")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1862078616]
+environment = SubResource("Environment_bkyto")
+
+[node name="Level" type="Node3D" parent="." unique_id=1339799595]
+
+[node name="Floor" type="MeshInstance3D" parent="Level" unique_id=912915629]
+mesh = SubResource("PlaneMesh_ma032")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="Level" unique_id=353343449]
+collision_layer = 9
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/StaticBody3D" unique_id=1821803020]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
+shape = SubResource("BoxShape3D_v266o")
+
+[node name="OmniLight3D" type="OmniLight3D" parent="Level" unique_id=1773674648]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 10, 0)
+light_color = Color(1, 0.964, 0.90999997, 1)
+light_energy = 4.0
+omni_range = 15.0
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=2141131932]
+transform = Transform3D(-0.5948227, -0.6664275, 0.44951105, 0, 0.55919284, 0.8290375, -0.8038569, 0.49313033, -0.3326206, 12.47, 18, -11.08)
+fov = 45.0
+
+[node name="Guides" type="Node3D" parent="." unique_id=1677301518]
+
+[node name="Attack" type="Node3D" parent="Guides" unique_id=2143773353]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, 0)
+
+[node name="Attack_Target" type="StaticBody3D" parent="Guides" unique_id=1308518984]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, -8)
+collision_layer = 16
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Guides/Attack_Target" unique_id=637610741]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("BoxShape3D_n3s36")
+
+[node name="Spell_1" type="Node3D" parent="Guides" unique_id=1443908207]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -8)
+
+[node name="Spell_2" type="Node3D" parent="Guides" unique_id=960946378]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 0)
+
+[node name="Spell_2_Target" type="Node3D" parent="Guides" unique_id=825153225]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, -8)
+
+[node name="Spell_4" type="Node3D" parent="Guides" unique_id=1268043644]
+unique_name_in_owner = true

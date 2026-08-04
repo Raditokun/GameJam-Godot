@@ -28,6 +28,8 @@ const DESPAWN_SWEEP_INTERVAL := 1.0
 
 ## Group a physics body must be in before this tool will pick it up.
 @export var drag_group := "draggable"
+## Group identifying the player, whose collision the held prop passes through.
+@export var player_group := "player"
 ## How far the cursor ray reaches into the scene. The bench is enormous from a
 ## miniature's point of view and this camera sits ~130 units above it, so the
 ## ray has to be much longer than a first-person interaction range.
@@ -110,6 +112,8 @@ var _was_frozen := false
 var _settling := {}
 ## Seconds accumulated toward the next fallen-prop sweep. See _clean_fallen_props().
 var _despawn_timer := 0.0
+## The player body, cached by _resolve_player().
+var _player: PhysicsBody3D = null
 
 
 func _ready() -> void:
@@ -204,6 +208,13 @@ func _try_grab() -> void:
 	# means it keeps colliding with everything else and the exclusion takes
 	# effect immediately -- collision layer changes have to be deferred.
 	ray.add_exception(body)
+	# The player is still standing on the bench during PREPARATION, and the carry
+	# spring can swing a prop hard enough to shove them. With the tabletop 74
+	# units up and FALL_DEATH_Y at 65, being barged off the edge by your own
+	# furniture is a death. Pass through them while it is in hand instead.
+	var player := _resolve_player()
+	if player != null:
+		player.add_collision_exception_with(body)
 
 
 func _drop() -> void:
@@ -211,6 +222,11 @@ func _drop() -> void:
 		return
 	if is_instance_valid(_dragged):
 		ray.remove_exception(_dragged)
+		# Solid again the moment it leaves your hands -- a dropped prop should
+		# block the player like any other piece of the maze.
+		var player := _resolve_player()
+		if player != null:
+			player.remove_collision_exception_with(_dragged)
 		# Let go: gravity comes back and whatever momentum and spin the drag
 		# built up carries into the fall, so a flung object really is flung.
 		_dragged.gravity_scale = _rest_gravity_scale
@@ -220,6 +236,20 @@ func _drop() -> void:
 			# mid-air. It re-freezes once it has come to rest by itself.
 			_settling[_dragged.get_instance_id()] = [0.0, 0.0]
 	_dragged = null
+
+
+## The player body, cached. Looked up by group so this needs no node path out of
+## the camera and keeps working wherever the Player instance sits in the scene.
+func _resolve_player() -> PhysicsBody3D:
+	if _player != null and is_instance_valid(_player) and _player.is_inside_tree():
+		return _player
+	_player = null
+	for node in get_tree().get_nodes_in_group(player_group):
+		var candidate := node as PhysicsBody3D
+		if candidate != null:
+			_player = candidate
+			break
+	return _player
 
 
 ## Drags the held body with a spring-damper instead of moving it.

@@ -57,9 +57,11 @@ material = SubResource("StandardMaterial3D_krj2w")
 
 [node name="CSGBox3D" type="CSGBox3D" parent="." unique_id=315715470]
 transform = Transform3D(10.201, 0, 0, 0, 0.2, 0, 0, 0, 10.201, 0, -0.1, 0)
+visible = false
 
 [node name="CSGBox3D2" type="CSGBox3D" parent="." unique_id=2047748755]
 transform = Transform3D(10.201, 0, 0, 0, 0.2, 0, 0, 0, 10.201, 0, 4.1, 0)
+visible = false
 
 [node name="Wall" type="Node3D" parent="." unique_id=20467507]
 
@@ -188,6 +190,7 @@ transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -5, 
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -5, 0, 0)
 
 [node name="KitchentableBLarge" type="MeshInstance3D" parent="." unique_id=1541299922]
+visible = false
 mesh = ExtResource("19_anvgo")
 
 [node name="OmniLight3D" type="OmniLight3D" parent="." unique_id=1195583914]
