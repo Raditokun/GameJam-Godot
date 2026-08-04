@@ -80,6 +80,9 @@ var _leap_target := Vector3.ZERO
 
 
 func _ready() -> void:
+	# Difficulty tuning — EASY gives the boss less health.
+	if GameSettings.difficulty == GameSettings.Difficulty.EASY:
+		max_health = 350.0
 	health = max_health
 	_spell_timer = spell_interval
 	_leap_timer = leap_interval

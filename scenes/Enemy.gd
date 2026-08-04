@@ -226,6 +226,10 @@ var _move_frame := -1
 
 
 func _ready() -> void:
+	# Difficulty tuning — EASY gives the enemy a slower pace.
+	if GameSettings.difficulty == GameSettings.Difficulty.EASY:
+		move_speed = 6.5
+		chase_speed_scale = 1.2
 	_spawn_transform = global_transform
 	agent.velocity_computed.connect(_on_velocity_computed)
 	agent.max_speed = move_speed

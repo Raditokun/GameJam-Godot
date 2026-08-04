@@ -5,6 +5,20 @@ the top.** Append-only; see `CLAUDE.md` §4 for the format and the rules.
 
 `CLAUDE.md` describes the project as it is now. This file records how it got
 there — including the dead ends.
+## 2026-08-04 17:08 — Difficulty Selection UI, GameSettings state, and HARD Pitch-Dark Flashlight mode
+
+**Changed:**
+- `scenes/GameSettings.gd` — Added `enum Difficulty { EASY, MEDIUM, HARD }` and `var difficulty: Difficulty = Difficulty.MEDIUM`.
+- `scenes/main_menu.tscn` — Added `DifficultyPanel` (VBoxContainer) with `EasyButton`, `MediumButton`, `HardButton`, and `BackButton` plus signal connections.
+- `scenes/Control.gd` — Updated menu handlers: `Play Game` shows `DifficultyPanel`; difficulty button presses set `GameSettings.difficulty` and transition to `Main.tscn`.
+- `scenes/Player.tscn` — Added `Flashlight` (`SpotLight3D`, `light_energy = 4.0`, `spot_range = 35.0`, `spot_angle = 32.0`) under `Head/Camera3D`.
+- `scenes/Player.gd` — Added `_apply_difficulty_lighting()` to configure ambient light energy (0.02) and directional light energy (0.03) when on HARD difficulty, and toggle `Flashlight` visibility.
+- `scenes/WaveSpawner.gd`, `scenes/Enemy.gd`, `scenes/Pistol.gd`, `scenes/BossMage.gd` — Applied EASY tier overrides in `_ready()` (wave parameters, move speeds, cannon cooldown/slow, boss max health) while keeping MEDIUM/HARD as standard baseline.
+- `CLAUDE.md` — Updated §1 overview and added §2j documenting the 3-Tier Difficulty System & Flashlight Mode.
+
+**Notes:**
+- **HARD Mode Lighting:** On HARD difficulty, DirectionalLight3D energy is set to 0.03 and ambient light energy is set to 0.02, creating pitch-black visibility where only the player's Flashlight SpotLight3D illuminates the workbench environment.
+- **EASY Mode Adjustments:** WaveSpawner (3 enemies wave 1, max 25 live, 55s interval), Enemy (6.5 move speed, 1.2 chase scale), Pistol (18s cooldown, 6.5s slow duration), BossMage (350 HP).
 
 ## 2026-08-04 15:35 — Health bar gated to the duel; carried props stop shoving the player
 

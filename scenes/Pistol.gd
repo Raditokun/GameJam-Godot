@@ -64,6 +64,10 @@ var _cooldown_timer := 0.0
 
 
 func _ready() -> void:
+	# Difficulty tuning — EASY gives a shorter cooldown and a longer slow.
+	if GameSettings.difficulty == GameSettings.Difficulty.EASY:
+		cooldown_time = 18.0
+		slow_duration = 6.5
 	if cooldown_bar == null:
 		return
 	# Set the range here rather than trusting the scene: the fill maths below

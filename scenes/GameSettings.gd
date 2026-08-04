@@ -19,6 +19,12 @@ const SENS_MAX := 5.0
 var sensitivity := 1.0
 var volume := 0.8
 
+## Difficulty tiers. EASY reduces enemy count/speed and buffs the cannon;
+## MEDIUM is the authored baseline; HARD uses the same combat tuning as MEDIUM
+## but plunges the bench into darkness with only a flashlight.
+enum Difficulty { EASY, MEDIUM, HARD }
+var difficulty: Difficulty = Difficulty.MEDIUM
+
 
 func _ready() -> void:
 	# Settings must stay reachable while the tree is paused behind the menu.

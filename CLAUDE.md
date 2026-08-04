@@ -41,18 +41,18 @@ ground/air acceleration, bunny-hopping, air-strafing, crouch — and a two-weapo
 combat kit (hitscan pistol, melee sword).
 
 Config: `project.godot`. Autoloads: `GameSettings` (`scenes/GameSettings.gd`) —
-persisted sensitivity/volume; `GameState` (`scenes/GameState.gd`) — the round
+persisted sensitivity/volume and Difficulty state (`enum Difficulty { EASY, MEDIUM, HARD }`); `GameState` (`scenes/GameState.gd`) — the round
 phase machine.
 
 ### Scene entry points
 
 **`run/main_scene` is `res://scenes/main_menu.tscn`** — the game boots into the
 menu, not into the bench. `res://scenes/Main.tscn` is the gameplay scene, reached
-from the Start button; it is still perfectly runnable on its own (F6 in the
+from the Start button -> Difficulty panel selection; it is still perfectly runnable on its own (F6 in the
 editor) for testing, and every headless probe in this project loads it directly.
 
-**`scenes/main_menu.tscn`** (script `scenes/Control.gd`) — Start →
-`change_scene_to_file("res://scenes/Main.tscn")`; Setting → hides `MainButtons`
+**`scenes/main_menu.tscn`** (script `scenes/Control.gd`) — Start → hides `MainButtons`
+and shows `DifficultyPanel` (`EasyButton`, `MediumButton`, `HardButton`, `BackButton`). Selecting Easy/Medium/Hard sets `GameSettings.difficulty` and calls `change_scene_to_file("res://scenes/Main.tscn")`; Setting → hides `MainButtons`
 and shows the `Setting` panel in place (no scene change), with Exit Setting
 reversing it; Credits → `res://scenes/credit_scene.tscn`; Quit →
 `get_tree().quit()`.
@@ -981,6 +981,22 @@ shared material still reads its authored (0.96, 0.60, 0.16).
   `Player.take_damage()`, which shakes in proportion to the hit, so it fires on a
   direct hit and on a splash graze but not on an orb that detonates harmlessly
   against distant scenery.
+
+### 2j. 3-Tier Difficulty System & HARD Mode Flashlight (`GameSettings.Difficulty`)
+
+The game supports 3 difficulty tiers selected from the Main Menu (`DifficultyPanel` in `scenes/main_menu.tscn`):
+
+- **`EASY`**:
+  - `WaveSpawner`: `first_wave_size = 3`, `max_live_enemies = 25`, `wave_interval = 55.0`
+  - `Enemy`: `move_speed = 6.5`, `chase_speed_scale = 1.2`
+  - `Pistol`: `cooldown_time = 18.0`, `slow_duration = 6.5`
+  - `BossMage`: `max_health = 350.0`
+- **`MEDIUM`** (Baseline):
+  - Standard gameplay tuning: wave 1 size 5, max live 35, 45s interval; enemy speed 8.0, chase 1.35; cannon cooldown 25.0s, slow duration 5.0s; boss health 500.0.
+- **`HARD` (Pitch-Dark Flashlight Mode)**:
+  - Combat parameters match MEDIUM baseline.
+  - Lighting: Environment `ambient_light_energy` is crushed to `0.02` and `DirectionalLight3D.light_energy` drops to `0.03` (near pitch-black).
+  - Flashlight: `Head/Camera3D/Flashlight` (`SpotLight3D`, `spot_range = 35.0`, `spot_angle = 32.0`, `light_energy = 4.0`) is enabled (`visible = true`), requiring the player to navigate and identify threats in narrow cone beam light.
 
 ### 2f. Wave Spawning (`scenes/WaveSpawner.gd`)
 

@@ -68,6 +68,11 @@ var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
 	_rng.randomize()
+	# Difficulty tuning — EASY gets a gentler swarm.
+	if GameSettings.difficulty == GameSettings.Difficulty.EASY:
+		first_wave_size = 3
+		max_live_enemies = 25
+		wave_interval = 55.0
 
 	_timer = Timer.new()
 	_timer.name = "WaveTimer"

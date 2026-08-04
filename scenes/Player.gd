@@ -205,6 +205,28 @@ func _ready() -> void:
 	health = max_health
 	_update_health_bar()
 	_set_health_bar_visible(false)
+	_apply_difficulty_lighting()
+
+
+## Applies the HARD-mode pitch-dark environment. On HARD the DirectionalLight
+## drops to near-zero and the ambient is crushed, leaving only the player's
+## SpotLight3D ("Flashlight") to see by. On EASY/MEDIUM the flashlight is off
+## and lighting stays at its authored values.
+func _apply_difficulty_lighting() -> void:
+	var flashlight := get_node_or_null("Head/Camera3D/Flashlight") as Light3D
+	if GameSettings.difficulty == GameSettings.Difficulty.HARD:
+		if flashlight != null:
+			flashlight.visible = true
+		# Dim the sun and the ambient to near-black.
+		var dir_light := get_tree().current_scene.find_child("DirectionalLight3D", true, false) as DirectionalLight3D
+		if dir_light != null:
+			dir_light.light_energy = 0.03
+		var world_env := get_tree().current_scene.find_child("WorldEnvironment", true, false) as WorldEnvironment
+		if world_env != null and world_env.environment != null:
+			world_env.environment.ambient_light_energy = 0.02
+	else:
+		if flashlight != null:
+			flashlight.visible = false
 
 
 ## Spends health, shakes the camera, and dies at zero. Called by the Archmage's

@@ -65,6 +65,12 @@ transform = Transform3D(0.95105654, -0.06424012, 0.30226815, 0, 0.9781476, 0.207
 visible = false
 cooldown_bar = NodePath("../../../HUD/StaffBar")
 
+[node name="Flashlight" type="SpotLight3D" parent="Head/Camera3D"]
+visible = false
+light_energy = 4.0
+spot_range = 35.0
+spot_angle = 32.0
+
 [node name="BuildMode" type="Node3D" parent="." unique_id=1099238411]
 script = ExtResource("6_build")
 
