@@ -7,10 +7,10 @@
 script = ExtResource("1_xpjdg")
 
 [node name="Label" type="Label" parent="." unique_id=784161651]
-offset_left = 288.0
-offset_top = 6.0
-offset_right = 415.0
-offset_bottom = 67.0
+offset_left = 226.0
+offset_top = 2.0
+offset_right = 353.0
+offset_bottom = 63.0
 theme_override_colors/font_color = Color(0.92890245, 0, 0.25589913, 1)
 theme_override_fonts/font = ExtResource("1_7r51v")
-theme_override_font_sizes/font_size = 50
+theme_override_font_sizes/font_size = 35

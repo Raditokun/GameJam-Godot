@@ -102,6 +102,31 @@ early during PREPARATION, so click / wheel / reach all belong to BuildMode.
   surface, not a prop, and an unfrozen 25 kg body under the player's feet slides
   around and gets shoved by them. **Tabletop surface sits at y ≈ 73.635**, and
   the scale carries a slight tilt, so the surface drifts ~0.15 across the bench.
+- `Kitchen` — instance of `res://kitchen.tscn` (note: project **root**, not
+  `scenes/`), the room the workbench stands in. Placed at
+  `(50.5054, 0, -4.5812955)` with a clean axis-aligned scale of **74.76889 —
+  deliberately the same factor `meja` carries.** The fiction only works if the
+  room is scaled with the bench: the player is a miniature, so a 1:1 kitchen
+  around a 74.8× table would look like a dollhouse instead of a real room. At
+  this scale the walls sit ±389 units out around a bench roughly 112 units in
+  half-extent, and `kitchen.tscn`'s floor lands at exactly **y = 0**, matching the
+  top of the existing `Floor` CSG slab.
+  - The `y` is 0 and not an offset because `kitchen.tscn`'s floor CSGBox already
+    has its top face at local y = 0 (centre −0.1, `size.y` **1.0**, scale 0.2).
+    `CSGBox3D.size` defaults to 1, not 2 — assuming 2 puts the whole room 7.5
+    units into the ground.
+  - **`Kitchen/KitchentableBLarge` is hidden** by an instance override. The
+    kitchen scene ships with its own `kitchentable_B_large` at the origin, and
+    `meja` (a `kitchentable_A_large`) is already the workbench standing in
+    exactly that spot — without the override the two tables intersect.
+  - The kitchen is **purely decorative**: its CSG floor/ceiling have
+    `use_collision` off and the KayKit gltf instances carry no colliders, so
+    nothing here collides, bakes into the navmesh, or costs physics.
+  - **Do not re-run `tools/BulkPropSetup.gd` without adding `Kitchen` to
+    `PropConverter.SKIP_NAMES`.** `Kitchen` is a plain Node3D containing meshes,
+    so `_skip_reason()` sees a conversion candidate and would wrap the entire
+    room in a RigidBody3D full of hulls. (`rebuild_prop_colliders.gd` is safe —
+    it only touches bodies already in the `draggable` group.)
 - `PrepCamera` (Camera3D + `PrepCamera.gd`) with a `MouseRay` (RayCast3D) child
   — the Preparation Phase tactical view. See §2b.
 - **~500 converted props** — the maze-building clutter (crates, furniture, food,
@@ -251,6 +276,13 @@ own CanvasLayer.)
 
 The "die" half of the die-and-retry loop, which until now had no trigger at all.
 
+- **Falling off the bench kills.** `_physics_process` calls `die()` as soon as the
+  player is below `FALL_DEATH_Y` (65.0) — the same threshold `PrepCamera` and
+  `Enemy` use to despawn fallen props and enemies. The tabletop is at y ≈ 73.6 and
+  the kitchen floor at y = 0, so the dead band is enormous and nothing on the
+  bench is near it. Checked before the `is_dead` branch so the fall registers on
+  the frame it happens, and gated on `not is_dead` so a corpse still sinking
+  cannot re-trigger (`die()` is idempotent regardless).
 - **`Enemy._check_contact_kill()`** calls `Player.die()` when a **chasing** enemy
   gets within `KILL_DISTANCE` (1.15) of the player. Both capsules are radius 0.4
   so they physically stop ~0.8 apart and can never close further; 1.15 fires
