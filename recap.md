@@ -1,5 +1,467 @@
 # Recap — change log
 
+## 2026-08-04 21:25 — Curse subtitle set in Dimbo Regular
+
+**Changed:**
+- `scenes/Player.tscn` — `HUD/SubtitleLabel` gains
+  `theme_override_fonts/font` → `Dimbo Regular.ttf` (new ext_resource `9_dimbo`);
+  `font_size` 30 → 36; `font_color` (1, 0.95, 0.8) → (1, 0.85, 0.2);
+  `outline_size` 8 → 12. Outline colour was already black.
+- `CLAUDE.md` — §1c notes the subtitle's typography.
+
+**Notes:**
+
+The gold now matches `BookPromptLabel` exactly, so the prompt that led the player
+to the book and the curse it delivers read as the same voice.
+
+**Verification:** headless probe (since deleted). Font resolves to
+`res://Fonts/Dimbo Regular.ttf`, size 36, colour (1, 0.85, 0.2), outline black at
+12. Untouched behaviour re-checked rather than assumed: still hidden at boot,
+still centred both ways, `autowrap_mode` still 2. Also measured the real curse
+string in the label's box — it needs **185 px of height in an 872 × 408 box**, so
+the larger font still wraps comfortably at either the 5- or 10-coin wording.
+
+**Not verified in play.** Gold-on-black at 36 pt should be legible, but contrast
+and line length are judgements for a windowed run.
+
+**Unrelated observation, flagged not changed:** `buku.tscn`'s `InteractArea`
+radius is now **233.7** (it was 24). That is wider than the kitchen's 389-unit
+half-extent is deep, so `Buku.is_player_near()` will be true across most of the
+room — meaning the "[E] Open Book" prompt shows almost from spawn rather than on
+approach. If that is deliberate staging, fine; if the prompt is meant to appear as
+a reward for getting close, the radius wants to come back down.
+
+## 2026-08-04 21:11 — Stage-based weapon rules; book prompt moved to Main.tscn
+
+**Changed:**
+- `scenes/Player.gd` — new `_weapon_slot_for_stage()`: −1 in the prologue,
+  `STAFF_SLOT` in the boss fight, slot 0 (Stasis Cannon) otherwise; `equip()`
+  gates on it. New `_update_book_prompt()` called from `_process`, plus `_book`,
+  `_book_prompt`, `_book_prompt_rest_y` and two bob constants.
+- `scenes/buku.tscn` / `buku.gd` — `BookPrompt` label and the font ext_resource
+  removed; the script is now just the trigger, exposing `is_player_near()`.
+- `scenes/Main.tscn` — new `BookPromptLabel` Label3D at (59.477, 92.2, −263.064)
+  with the Dimbo font, plus its ext_resource.
+- `CLAUDE.md` — weapon rules and the relocated label documented.
+
+**Notes:**
+
+**This reverses the 20:50 change, and that is the right outcome.** The Stasis
+Cannon is available again for the swarm/coin round — which is the balance concern
+I flagged then, now resolved by the brief itself.
+
+**One part of the brief could not be honoured, and it would have broken the build
+phase.** It asked for the Pistol enabled "during PREPARATION, ACTION, and coin
+phases". PREPARATION already holsters everything via `_on_phase_changed()`, and
+that is deliberate: **LMB is the prop-drag tool during PREPARATION**, so an armed
+cannon would fire every time the player grabbed a prop. (`PrepCamera` is also the
+active camera then, so the weapon would not even be on screen.) I left that
+behaviour intact — the Cannon is live from ACTION onward, covering the whole coin
+round. Verified as holstered in PREPARATION and visible in ACTION.
+
+**A parse error I introduced and caught:** `var show_it := ... _book.is_player_near()`
+would not compile — `is_player_near()` is a dynamic call on an untyped `Node`, so
+inference fails and **the entire `Player.gd` refused to load**, not just that
+function. Typed explicitly as `bool`. Worth remembering: a failed inference in one
+line takes the whole script down.
+
+**On moving the label:** putting it in `Main.tscn` in world space is a genuine
+simplification. Three separate passes on this scene had to work around the book's
+local frame, where the mesh renders ~34 units up and 5 across from the node
+origin, so every "position it above the book" instruction needed re-deriving. In
+world space it is just a coordinate over the book.
+
+**Verification:** headless probe (since deleted). Label present in `Main.tscn`
+with the old one gone from `buku.tscn`; Dimbo font, 32/0.002, `fixed_size` false,
+billboard, `no_depth_test`, gold; sitting above the book (92.2 vs 86.5). Prologue:
+both weapons hidden. Prompt: hidden when far, shown when near, bobbing a measured
+**1.20**, hidden during the curse blackout and after the prologue ends.
+PREPARATION: both holstered. ACTION: Pistol only. Boss fight: Staff only. After
+reset: back to PREPARATION and holstered.
+
+**Not verified in play.** Whether the prompt reads well from a distance is still
+open — the measured world text height at these settings was 0.29 units (~10 px at
+25 units), so it may want `pixel_size` nearer 0.004.
+
+## 2026-08-04 20:50 — Weapons gated to the boss fight; book label re-positioned
+
+**Changed:**
+- `scenes/buku.tscn` — `BookPrompt` moved to local y 24.949 (from 27.949) and
+  `font_size` 28 → 32. Everything else was already at the specified values.
+- `scenes/Player.gd` — `equip()` now gates on `GameState.boss_fight`: outside the
+  duel every weapon is holstered and invisible. `_clear_death()` re-runs `equip()`
+  so a retry starts unarmed.
+- `CLAUDE.md` — weapon-visibility gate documented under the weapon system.
+
+**Notes:**
+
+**Gated centrally in `equip()` rather than at each call site.** That makes it the
+single place a weapon can ever come out, and since each weapon already gates its
+own `_unhandled_input` on `equipped`, holstering there disables firing for free —
+no separate "disable attack inputs" path was needed. `_slot` is still remembered,
+so pressing 1 or 2 outside the fight is harmless and a later arm resumes where it
+left off.
+
+**A consequence worth stating plainly: the Stasis Cannon is now unavailable during
+the swarm round.** That is the round it was designed for — `CLAUDE.md` describes
+its 25-second cooldown as the "escape hatch" that buys time against the one enemy
+about to reach you, and explicitly as the reason the maze is the real answer
+rather than the weapon. With this change the coin-collection phase is pure
+evasion against up to 35 instant-kill minions with nothing to slow them. That
+follows the brief ("disable weapon attack inputs outside of Boss Fight Mode"), and
+it may well be the intent given the curse fiction — but it is a significant
+balance change, not just a visibility fix. One line in `equip()` reverses it, and
+`CLAUDE.md` records where.
+
+**On the label:** only two of the six specified properties actually differed
+(y and font_size); the rest were already set from the 20:44 pass. The new y is 3
+units lower, which the probe confirms still sits above the book's top (92.2 vs
+86.5). Note the label bobs, so `position.y` samples anywhere in ±0.6 — the probe
+asserts against `_prompt_rest_y`, the script's remembered rest height, rather than
+the live value.
+
+**Verification:** headless probe (since deleted). At load and through a full
+ACTION round both weapons are invisible and unequipped; `equip(0)`/`equip(1)`
+leave them that way; a `fire` event while holstered leaves the cannon's cooldown
+untouched. On `start_boss_fight()` the staff becomes visible and equipped while
+the pistol stays hidden; after `reset_round()` both are hidden again. Label: rest
+y 24.949, font_size 32, pixel_size 0.002, `fixed_size` false, billboard 1,
+`no_depth_test` true, gold modulate, Dimbo font resolved, still above the book.
+
+**Not verified in play.** Whether an unarmed coin round is survivable at 35
+enemies is a balance question that needs playing, not probing — it is the one
+thing I would test first.
+
+## 2026-08-04 20:44 — Book marker restyled as one Dimbo-font floating prompt
+
+**Changed:**
+- `scenes/buku.tscn` — `BookMarker` and `Prompt` replaced by a single
+  `BookPrompt` Label3D: "▼ / [E] Open Book", `Dimbo Regular.ttf`, gold
+  (1, 0.85, 0.2), `font_size` 28, `pixel_size` 0.002, `fixed_size` false,
+  billboard, `outline_size` 6 with a black outline. New font ext_resource.
+- `scenes/buku.gd` — `FONT` preload; `prompt_text` default updated;
+  `marker_bob_rate`; the looping tween replaced by a `_process` sine bob;
+  `_on_body_entered/exited` no longer toggle visibility.
+- `CLAUDE.md` — §1c updated for the single prompt and its measured size.
+
+**Notes:**
+
+**This merged two labels into one.** The book previously had a `BookMarker`
+(always up) and a `Prompt` (shown in range). `BookPrompt` carries both jobs, so
+**the key hint is now visible from across the room** rather than only when the
+player is close enough to press E. The `InteractArea` still gates whether E does
+anything. That follows the brief's single-label spec, but it is a real behaviour
+change and easy to reverse if the always-on "[E]" reads as a lie at distance.
+
+**Position deviates from the brief again, for the same reason as before.** The
+specified `(0, 0.35, 0)` is the *node* origin, but the book mesh renders at a
+local offset of roughly (−3.2, 12→34, 3.9) — a label at the origin would float in
+empty space some 27 units below and 5 across from the book. `BookPrompt` sits at
+(−3.235, 27.949, 3.88), measured, and verified above the book's top.
+
+**Bob amplitude is 0.6, not the specified 0.04**, for the third time on this
+scene: the file is in world units next to a 26-unit book, so 4 cm is 0.15% of it
+and invisible. The *rate* is exactly as specified (0.003 rad/ms, ~2.1 s a cycle)
+and the formula is the brief's.
+
+**A size caveat worth acting on.** At `font_size` 28 / `pixel_size` 0.002 the
+measured world text height is **0.29 units** — about **10 px** at 25 units on a
+1080p 70° view, roughly *half* the marker it replaced (0.57 units, ~20 px). Fine
+at arm's length, easy to miss from across the room, which is precisely where the
+arrow is meant to do its work. `pixel_size` ≈ 0.004 doubles it. I left the
+specified value in place and recorded the number.
+
+**Verification:** headless probe (since deleted). Both old nodes gone;
+`BookPrompt` present with every specified property confirmed (text, Dimbo font
+resolved from the .tscn, 28/0.002, `fixed_size` false, billboard 1, gold
+modulate, outline 6 black); positioned above the book's top; bob travel measured
+at **1.20** (= 2 × amplitude) over 400 frames; still visible after walking out of
+range; hidden after inspection with the bob confirmed stopped.
+
+**Not verified in play.** How the type reads at this size, whether gold-on-kitchen
+has enough contrast, and whether the outline is heavy enough all need a windowed
+run.
+
+## 2026-08-04 20:35 — HARD darkness deferred until after the curse
+
+**Changed:**
+- `scenes/Player.gd` — `_apply_difficulty_lighting()` renamed
+  `apply_environment_lighting()` and rewritten: daylight when `is_prologue` **or**
+  the difficulty is not HARD; darkness only otherwise. Now called from three
+  places instead of one.
+- `CLAUDE.md` — §1c documents the deferral and the shared-Environment trap.
+
+**Notes:**
+
+**The call in `_ready()` is not enough on its own, and this is the part that would
+have silently failed.** `_ready()` runs `apply_environment_lighting()` *before*
+the deferred `_begin_prologue()`, so at that moment `is_prologue` is still false —
+on HARD the kitchen would already be pitch black by the time the prologue set the
+flag. It is therefore called three times: `_ready()`, the end of
+`_begin_prologue()` (with the flag now set → daylight), and `_end_prologue()`
+(flag cleared → darkness). The middle one is the one that actually makes the
+feature work.
+
+**Both branches must set every property the other touches.** The `Environment` is
+a single shared resource that survives the day→dark switch inside one scene run,
+so a branch that restores only part of its state leaves the rest behind. The
+daylight branch now also resets `ambient_light_energy` to 1.0 — without it, a
+daylight pass following a dark one leaves the world unlit under a visible sky.
+That is not reachable in the current flow (which only ever goes day→dark) but it
+is one line and the probe exercises it.
+
+**Verification:** headless probe (since deleted), forced to HARD with the prologue
+requested. During the prologue: `is_prologue` true, directional light on at
+energy 1.0, background BG_SKY, ambient source BG at energy 1.0, flashlight off.
+After emitting `book_inspected` and pressing Space: directional light off,
+background BG_COLOR at (0.005, 0.005, 0.015), ambient source COLOR at energy
+0.02, flashlight on. Then switched to MEDIUM and re-applied: every one of those
+properties restored, including `ambient_light_energy` back to 1.0.
+
+A note on that probe's output if anyone re-runs it: my printed enum hints were
+inverted (`BG_SKY` is 2 and `BG_COLOR` is 1, not the other way round). The
+assertions compared against the real `Environment.*` constants, so the checks were
+sound — only the human-readable hints were wrong.
+
+**Not verified in play.** Whether the transition reads as the lights being
+snuffed out — and whether the flashlight alone is enough to navigate the bench on
+HARD — both need a windowed run. The flashlight has never been seen working.
+
+**Left undone:** a cross-reference in §2j (the difficulty table) pointing at §1c
+for the deferral. `CLAUDE.md` was locked by the open editor when I tried to add
+it. §1c itself is complete; §2j still describes the HARD lighting without noting
+it now waits for the prologue.
+
+## 2026-08-04 20:25 — Label3D text now scales with perspective instead of the screen
+
+**Changed:**
+- `scenes/buku.tscn` — `BookMarker` and `Prompt` both set to
+  `fixed_size = false`, `pixel_size = 0.0015`, `font_size = 36`,
+  `outline_size = 8`, `no_depth_test = true`.
+- `CLAUDE.md` — §1c records the settings and the measured result.
+
+**Notes:**
+
+**Why it was huge:** with `fixed_size = true` a Label3D is drawn at a constant
+*screen* size and `pixel_size` stops meaning world units — it becomes a screen
+scale. At 0.014 with a 96 pt font the marker filled the view and stayed that big
+no matter how far away the book was. Turning `fixed_size` off makes the label an
+ordinary object in the world that shrinks with distance like everything else,
+which is what "3D perspective scaling" buys.
+
+**Measured on the real scene rather than assumed**, because I expected these
+numbers to overshoot into invisibility and was wrong. `font_size * pixel_size`
+(36 × 0.0015 = 0.054) is *not* the rendered height — Label3D's actual world AABB
+came out at **0.570 units** for the marker and **0.477** for the prompt, since the
+height covers line spacing and glyph extents rather than a single em. Against a
+26-unit book that is ~2% of its width; at a plausible 25-unit viewing distance it
+subtends roughly **20 px** (marker) and **17 px** (prompt) on a 1080p 70° view.
+
+So the specified values are a real fix, not an overcorrection — but they land on
+the *small* side for a "come over here" cue. If the marker needs to carry across
+the room, `pixel_size` ≈ 0.003 doubles it; the recorded numbers above make that a
+one-step calculation rather than guesswork.
+
+**Verification:** headless probe (since deleted) confirmed all five properties on
+both labels and reported the world sizes above.
+
+**Not verified in play.** Apparent size depends on FOV, resolution and how close
+the player actually walks — the 25-unit distance is my estimate, not a measured
+approach. Legibility is a windowed-run judgement.
+
+## 2026-08-04 20:20 — Kitchen collisions, prologue pace, book marker, HUD cleanup
+
+**Changed:**
+- `scenes/Player.gd` — new `prologue_speed` export (3.5), applied in
+  `_physics_process` as `prologue_speed * PROLOGUE_SCALE`;
+  `_update_phase_label()` early-returns while the label is hidden;
+  `_set_combat_hud_visible()` no longer lists `PhaseLabel`.
+- `kitchen.tscn` — new `Collisions` StaticBody3D with 9 box shapes: 4 walls at
+  ±5.4, a room floor with its top at y = 0, and a counter ring at ±4.4.
+- `scenes/buku.tscn` / `buku.gd` — new `BookMarker` Label3D ("▼ CURSED BOOK ▼",
+  gold) above the book; `marker_bob` / `marker_bob_time` exports; looping bob
+  tween in `_start_marker_bob()`; marker hides on inspection.
+- `CLAUDE.md` — §1c gains pace, collisions and marker; HUD tree marks both debug
+  labels hidden.
+
+**Notes:**
+
+**Two of the brief's numbers do not survive this world's scale, and I changed
+both rather than shipping them broken:**
+1. **`prologue_speed` is multiplied by `PROLOGUE_SCALE`.** The player is 74.77×
+   during the prologue. A raw 3.5 u/s crosses the 763-unit room in **218
+   seconds**; scaled, it takes 3. Applying the literal value would have made the
+   kitchen effectively unwalkable.
+2. **`marker_bob` defaults to 0.6, not the specified 0.05.** `buku.tscn` is in
+   world units beside a book 26 units wide, so a 5 cm bob is 0.2% of the book —
+   literally invisible. Exported, so it is one number to change back.
+
+Likewise the marker sits at the book's **measured** local offset (−3.235, 33.949,
+3.88), not the specified `(0, 0.4, 0)` — the mesh sits ~12 units up and 5 across
+from the node origin, so the specified position would have floated the label off
+in empty space, well below the book.
+
+**A bug I introduced at 19:53 and caught here:** `_set_combat_hud_visible()`
+listed `HUD/PhaseLabel`, so ending the prologue would have switched the debug
+readout **on** — the opposite of this task. Removed from the list, and
+`_update_phase_label()` now bails when the label is hidden so it does not format
+a string every frame for something nobody sees.
+
+**On the kitchen colliders:** they live in `kitchen.tscn` and therefore scale with
+the 74.77× instance. Uniformly-scaled static boxes are the safe case, but it is
+worth knowing this is the one place in the project where a collider is scaled
+deliberately — everywhere else the pattern is to keep the body at scale 1 and put
+the scale on a `Model` child. The counter ring is an approximation: a solid band
+along all four walls rather than per-counter shapes, so it also seals the doorway
+and the gaps between units. Fine for a prologue the player is not meant to leave;
+wrong if the kitchen ever becomes explorable.
+
+**Verification:** headless probe (since deleted). `prologue_speed` 3.5 → an
+effective 262 u/s (3 s to cross the room, against 218 s unscaled); `PhaseLabel`
+and `StatsLabel` both hidden; `BookMarker` present, gold (1, 0.85, 0.2), text
+correct, sitting at y 101.6 above the book's top at 86.5, bobbing a measured
+**0.60** over 240 frames, and hidden after inspection; `Collisions` present on
+layer 1 with exactly 9 shapes; rays cast outward from the room centre are blocked
+in all four directions; and a downward ray at z = 300 — beyond `Main.tscn`'s own
+`Floor` slab — now lands on `Collisions` instead of falling through.
+
+**One weak spot in that test:** the forward ray hit the *Player* rather than a
+wall, because the player happened to be standing that way. The other three hit
+`Collisions` directly, and the floor test is unambiguous, so the body is
+demonstrably working — but that one direction is not independently proven.
+
+**Not verified in play.** Whether the walls feel solid to walk into at 74.77×,
+whether the counter band reads as furniture or as an invisible barrier, and
+whether the marker's bob is the right amount of "enticing" all need a windowed
+run.
+
+## 2026-08-04 20:06 — Resolved the Control.gd merge conflict (+ fixed a broken hand-off)
+
+**Changed:**
+- `scenes/Control.gd` — conflict markers removed; rewritten cleanly with both
+  sides merged. `_on_easy/medium/hard_pressed()` → `_select_difficulty()` (records
+  the difficulty, advances to How to Play); `_start_game()` sets
+  `GameState.prologue_requested` and changes scene;
+  `_on_how_to_play_start_pressed()` calls it. All other handlers preserved
+  verbatim from the pre-conflict file.
+- `scenes/main_menu.tscn` — `How to PLay/Button5` re-pointed from itself to
+  `.` / `_on_how_to_play_start_pressed`.
+- `CLAUDE.md` — §1 menu section rewritten for the three-panel run-in.
+
+**Notes:**
+
+**The merge as specified would have left the game unstartable-as-designed, and it
+is worth understanding why.** `_on_how_to_play_start_pressed()` had **no
+connection to it** — the How to Play panel's only wired button, `Button5`, was
+connected **to itself**, running `Next_HTP.gd._on_pressed()`, which calls
+`change_scene_to_file("res://scenes/Main.tscn")` directly and never touches
+`GameState.prologue_requested`. So resolving the conflict literally would have
+produced two dead methods in `Control.gd` and a game that always skipped the
+kitchen prologue built at 19:53 — silently, with no error. I re-pointed `Button5`
+at the menu script, which is what makes the specified method live.
+
+`Next_HTP.gd` is still attached to that button but now has nothing connected to
+it. Left in place rather than removed — deleting a script was not in scope — but
+it is dead weight and its empty `_process` still ticks every frame.
+
+**One deliberate ordering choice:** `prologue_requested` is set in
+`_start_game()`, not in `_select_difficulty()`. Arming it when a difficulty is
+picked would leave the flag set if the player pressed Back, so a later direct run
+of `Main.tscn` could open on the prologue unexpectedly. The probe asserts the flag
+stays false through Start → difficulty → Back and through all three difficulty
+selections.
+
+The HEAD side also hid `main_buttons` and `setting` inside each difficulty
+handler. Dropped as redundant: the difficulty panel is only reachable through
+`_on_start_pressed()`, which has already hidden both.
+
+**Verification:** headless probe (since deleted). No `<<<<<<<`, `=======` or
+`>>>>>>>` anywhere in `Control.gd`, and a tree-wide grep finds no markers in any
+scene or script. Boot state correct (MainButtons up, other three down);
+Start → difficulty; Back → main with the prologue flag **still false**; each of
+Easy/Medium/Hard sets the matching `GameSettings.difficulty`, shows How to Play,
+hides the difficulty panel and **does not** arm the prologue; `Button5` resolves
+to `_on_how_to_play_start_pressed` **on the menu object** (not the button); and
+that handler sets `prologue_requested = true`.
+
+**Not verified in play.** Whether the How to Play card reads well and whether
+`Button5` is actually the "start" button on it rather than another control are
+visual judgements — I matched it by wiring, since it is the only connected button
+on that panel.
+
+## 2026-08-04 19:53 — Kitchen prologue, cursed book, Space transition
+
+**Changed:**
+- `scenes/buku.gd` — **new.** `InteractArea` + `Prompt` handling, `book_inspected`
+  signal, one-shot latch, `is_used()`.
+- `scenes/buku.tscn` — script attached; `InteractArea` (sphere r 24, mask 1) and
+  billboarded `Prompt` Label3D added at the book's measured centre.
+- `scenes/Player.gd` — `is_prologue`, `_in_curse_blackout`, `_base_movement`;
+  `PROLOGUE_SCALE`, `PROLOGUE_SPAWN`, `FADE_TIME`; `_begin_prologue()`,
+  `_on_book_inspected()`, `_end_prologue()`, `_set_combat_hud_visible()`,
+  `_find_book()`; fall-death guard and blackout freeze in `_physics_process`;
+  Space branch in `_unhandled_input`.
+- `scenes/Player.tscn` — `HUD/BlackOverlay` (ColorRect) and `HUD/SubtitleLabel`.
+- `scenes/GameState.gd` — `prologue_active`, `prologue_requested`,
+  `end_prologue()`.
+- `scenes/PrepCamera.gd` — `_apply_phase()` returns early while the prologue runs.
+- `scenes/Control.gd` — all three difficulty buttons funnel through
+  `_start_game()`, which sets `prologue_requested`.
+- `CLAUDE.md` — new §1c.
+
+**Notes:**
+
+**I asked before building, and the answer changed the design.** The brief said to
+put the player on the kitchen floor "at normal scale (y ≈ 1.6m)". Measured, that
+is impossible: the book sits **72 units above the floor** and is **26 units wide**
+— an unreachable monolith to a 1.8-unit player, but **0.35 m at waist height** to
+someone scaled 74.77×. The book was authored for a full-size player in the
+74.77×-scaled kitchen. You chose to scale the player up, so `_begin_prologue()`
+sets `scale = 74.76889` and scales `max_speed`, `walk_speed`, `crouch_speed`,
+`jump_velocity` and `gravity` by the same factor, restoring all of it on the
+shrink. `PROLOGUE_SPAWN` is (59.5, 8, −180) — on the floor, a few strides back
+from the book.
+
+**Two deviations from the brief's literal text, both necessary:**
+1. The fall-death bypass is a **condition on the check**, not the brief's
+   `if is_prologue: return` at the top of `_physics_process`. That early return
+   would have skipped the movement code too and frozen the player for the whole
+   prologue.
+2. The phase stays **PREPARATION** throughout rather than being set at the end
+   (it is already PREPARATION). What actually needed doing was stopping
+   `PrepCamera` seizing the camera and releasing the cursor — hence
+   `GameState.prologue_active` and `end_prologue()`, which re-emits
+   `phase_changed` so PrepCamera takes over on cue.
+
+**Also fixed, pre-existing:** `Player._apply_difficulty_lighting()` called
+`get_tree().current_scene.find_child(...)`, and `current_scene` is null for a
+scene hosted by hand — it crashed `_ready()` outright and took the rest of the
+player's setup with it. Now falls back to `get_parent()`. This is the same trap
+already fixed in `GameState`, `StaffQuartz` and `BossMage`; `Pistol._spawn_tracer`
+still has the unguarded form.
+
+**Verification:** headless probe (since deleted). Prologue: flag consumed, scale
+74.77, `max_speed` 523, spawned on the kitchen floor and **alive at y = 0.00
+despite `FALL_DEATH_Y` = 65**, minimap hidden, weapons holstered. Book: prompt
+hidden at boot, shows on entering the zone, hides on exit, `book_inspected` fires
+exactly once and does not re-fire, and the `InteractArea` lands **0.00 units** off
+the book's measured centre. Curse: subtitle up with the right coin count for the
+difficulty, player frozen, overlay reaching alpha 1.00. Space: scale back to 1.0,
+`max_speed` back to 7.0, teleported to the tabletop spawn, subtitle gone, minimap
+back, phase PREPARATION, overlay faded to 0.00 — and **fall-death live again**,
+killing at y = 40.
+
+**Not verified in play, and one thing to watch.** Scaling a `CharacterBody3D`
+scales its collider, which your §5 notes warn Jolt handles badly — it is the
+reason props keep their scale on a `Model` child. It behaved correctly headlessly
+(the player stood on the floor at y = 0 and did not sink or jitter), but stepping,
+slopes and wall contact at 74.77× are exactly where a scaled capsule would
+misbehave, and only a windowed run will tell. If it does, the alternative is a 1×
+prologue in its own unscaled room.
+
+Also unchecked: the fades, the subtitle's legibility, and whether the kitchen
+reads as a *normal* room at this scale — the whole point of the choice.
+
 Handoff log for agents and sessions working on this project. **Newest entry at
 the top.** Append-only; see `CLAUDE.md` §4 for the format and the rules.
 

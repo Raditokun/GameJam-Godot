@@ -388,6 +388,12 @@ func _on_phase_changed(new_phase: int) -> void:
 ## PREPARATION owns this camera and a free cursor; ACTION hands both back to the
 ## first-person controller.
 func _apply_phase(new_phase: int) -> void:
+	# The prologue runs in PREPARATION but is first-person: the player is walking
+	# the kitchen at full size. Taking the camera and releasing the cursor here
+	# would break it. GameState.end_prologue() re-emits the phase, which is how
+	# this camera takes over once the curse lands.
+	if GameState.prologue_active:
+		return
 	if new_phase == GameState.Phase.PREPARATION:
 		make_current()
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

@@ -38,6 +38,16 @@ var attempt := 1
 ## True while the Archmage duel is running, so the wave spawner and anything else
 ## that would flood the bench can stay out of it.
 var boss_fight := false
+## True while the kitchen prologue is running: the player is walking the kitchen
+## at full size before the curse shrinks them onto the bench. The phase stays
+## PREPARATION throughout (so no waves and no coins), but `PrepCamera` has to
+## stand down or it would seize the camera and release the cursor -- see
+## `PrepCamera._apply_phase()`.
+var prologue_active := false
+## Set by the main menu so the gameplay scene knows to open on the prologue.
+## Running Main.tscn directly (F6) leaves this false and drops straight onto the
+## bench, which is what every test and probe wants.
+var prologue_requested := false
 
 
 func _ready() -> void:
@@ -158,6 +168,17 @@ func _spawn_host() -> Node:
 		if parent != null:
 			return parent
 	return null
+
+
+## Ends the prologue and hands the round back to the normal PREPARATION flow.
+## Re-emits `phase_changed` so `PrepCamera` -- which stood down while the
+## prologue ran -- picks the phase up and takes the camera as it normally would.
+func end_prologue() -> void:
+	if not prologue_active:
+		return
+	prologue_active = false
+	phase = Phase.PREPARATION
+	phase_changed.emit(phase)
 
 
 func is_preparation() -> bool:

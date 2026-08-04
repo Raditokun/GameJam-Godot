@@ -21,7 +21,6 @@
 [ext_resource type="PackedScene" uid="uid://byr5q3r8yy0kj" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/wall.gltf" id="18_6ty1x"]
 [ext_resource type="ArrayMesh" uid="uid://wujyut5gus0d" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/obj/kitchentable_B_large.obj" id="19_anvgo"]
 [ext_resource type="PackedScene" uid="uid://boir8fyhwunlp" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/wall_doorway.gltf" id="19_igr4s"]
-[ext_resource type="ArrayMesh" uid="uid://gismj7w5q5k5" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/obj/fridge_A.obj" id="22_gd6ct"]
 [ext_resource type="Texture2D" uid="uid://ceg5s0ubuhwps" path="res://2D Model/656874bcb8911d93bf8fbefb750a49b4.jpg" id="23_0vlrs"]
 [ext_resource type="Texture2D" uid="uid://eigtvdepk8ah" path="res://2D Model/20231004_175803.jpg" id="24_48bnl"]
 
@@ -53,7 +52,62 @@ albedo_texture = ExtResource("24_48bnl")
 [sub_resource type="PlaneMesh" id="PlaneMesh_6hkrd"]
 material = SubResource("StandardMaterial3D_krj2w")
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_kitchen_wall_x"]
+size = Vector3(0.4, 4.4, 10.8)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_kitchen_wall_z"]
+size = Vector3(10.8, 4.4, 0.4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_kitchen_floor"]
+size = Vector3(10.8, 0.4, 10.8)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_kitchen_counter_x"]
+size = Vector3(1.2, 1.05, 10.8)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_kitchen_counter_z"]
+size = Vector3(10.8, 1.05, 1.2)
+
 [node name="Node3D" type="Node3D" unique_id=1178546438]
+
+[node name="Collisions" type="StaticBody3D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="WallWest" type="CollisionShape3D" parent="Collisions"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.4, 2.2, 0)
+shape = SubResource("BoxShape3D_kitchen_wall_x")
+
+[node name="WallEast" type="CollisionShape3D" parent="Collisions"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.4, 2.2, 0)
+shape = SubResource("BoxShape3D_kitchen_wall_x")
+
+[node name="WallNorth" type="CollisionShape3D" parent="Collisions"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.2, -5.4)
+shape = SubResource("BoxShape3D_kitchen_wall_z")
+
+[node name="WallSouth" type="CollisionShape3D" parent="Collisions"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.2, 5.4)
+shape = SubResource("BoxShape3D_kitchen_wall_z")
+
+[node name="RoomFloor" type="CollisionShape3D" parent="Collisions"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2, 0)
+shape = SubResource("BoxShape3D_kitchen_floor")
+
+[node name="CounterWest" type="CollisionShape3D" parent="Collisions"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.4, 0.525, 0)
+shape = SubResource("BoxShape3D_kitchen_counter_x")
+
+[node name="CounterEast" type="CollisionShape3D" parent="Collisions"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.4, 0.525, 0)
+shape = SubResource("BoxShape3D_kitchen_counter_x")
+
+[node name="CounterNorth" type="CollisionShape3D" parent="Collisions"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.525, -4.4)
+shape = SubResource("BoxShape3D_kitchen_counter_z")
+
+[node name="CounterSouth" type="CollisionShape3D" parent="Collisions"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.525, 4.4)
+shape = SubResource("BoxShape3D_kitchen_counter_z")
 
 [node name="CSGBox3D" type="CSGBox3D" parent="." unique_id=315715470]
 transform = Transform3D(10.201, 0, 0, 0, 0.2, 0, 0, 0, 10.201, 0, -0.1, 0)
@@ -201,18 +255,6 @@ light_indirect_energy = 0.0
 light_volumetric_fog_energy = 7.375
 light_size = 2.55
 shadow_enabled = true
-
-[node name="FridgeA" type="MeshInstance3D" parent="." unique_id=1311508833]
-transform = Transform3D(-5.7, 0, -4.983099e-07, 0, 3.6890004, 0, 4.983098e-07, 0, -5.700001, 4, 0, -38)
-mesh = ExtResource("22_gd6ct")
-
-[node name="FridgeA2" type="MeshInstance3D" parent="." unique_id=511747945]
-transform = Transform3D(-5.7, 0, -4.983099e-07, 0, 3.5414407, 0, 4.983098e-07, 0, -5.700001, -3, -3, -37.8)
-mesh = ExtResource("22_gd6ct")
-
-[node name="FridgeA3" type="MeshInstance3D" parent="." unique_id=1990396371]
-transform = Transform3D(-5.7, 0, -4.983099e-07, 0, 2.7888842, 0, 4.983098e-07, 0, -5.700001, 1, -4, -35)
-mesh = ExtResource("22_gd6ct")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=2060521071]
 transform = Transform3D(-44.986588, 1.7444595e-06, 7.3186906e-14, 0, 8.722298e-07, -19.152, 3.9328525e-06, 19.95429, 8.3716066e-07, 4, 8, -36)

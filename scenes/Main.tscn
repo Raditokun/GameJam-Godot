@@ -14,7 +14,6 @@
 [ext_resource type="PackedScene" uid="uid://dw7o0212h582i" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/crate_tomatoes.gltf" id="8_5dy05"]
 [ext_resource type="PackedScene" uid="uid://byvpfn0i3wva7" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/dishrack_plates.gltf" id="9_v2cqe"]
 [ext_resource type="PackedScene" uid="uid://dpy4d6cd0t12e" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/food_ingredient_cheese_slice.gltf" id="10_4m8vs"]
-[ext_resource type="FontFile" uid="uid://buymujb17ux3s" path="res://Fonts/Dimbo Regular.ttf" id="11_r4bfa"]
 [ext_resource type="PackedScene" uid="uid://cq0iutnu23rlh" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/food_ingredient_ham_cooked.gltf" id="11_rmx21"]
 [ext_resource type="PackedScene" uid="uid://bs187dwrkp0km" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/food_ingredient_onion.gltf" id="12_beypw"]
 [ext_resource type="PackedScene" uid="uid://csdlorlj35fx4" path="res://3DModels/KayKit_Restaurant_Bits_1.0_FREE/KayKit_Restaurant_Bits_1.0_FREE/Assets/gltf/food_ingredient_potato_mashed.gltf" id="13_dtnoj"]
@@ -348,7 +347,10 @@
 [ext_resource type="PackedScene" uid="uid://2gjfhdb1wvcy" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/containers_B.gltf" id="355_dlitg"]
 [ext_resource type="PackedScene" uid="uid://50nv0k4k4ogn" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/rock_A.gltf" id="356_8hoxf"]
 [ext_resource type="PackedScene" uid="uid://vj545lbokok6" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/roofmodule_cargo_C.gltf" id="357_ckcex"]
+[ext_resource type="PackedScene" uid="uid://udcc8lbvjstp" path="res://scenes/buku.tscn" id="357_r4bfa"]
 [ext_resource type="PackedScene" uid="uid://dwwcol5n1rul7" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/solarpanel.gltf" id="358_5sk6f"]
+[ext_resource type="PackedScene" uid="uid://b76libbrkooy5" path="res://3DModels/KayKit_Skeletons_1.1_FREE/KayKit_Skeletons_1.1_FREE/characters/gltf/Skeleton_Warrior.glb" id="358_ps8sl"]
+[ext_resource type="FontFile" uid="uid://buymujb17ux3s" path="res://Fonts/Dimbo Regular.ttf" id="359_dimbo"]
 [ext_resource type="PackedScene" uid="uid://dq5g5v7qfy0eq" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/structure_low.gltf" id="359_qwdee"]
 [ext_resource type="PackedScene" uid="uid://dkvf35d6jwuno" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/terrain_low_curved.gltf" id="360_aucvy"]
 [ext_resource type="PackedScene" uid="uid://cys5uhhil0laq" path="res://3DModels/KayKit_Space_Base_Bits_1.0_FREE/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/terrain_slope_outer_corner.gltf" id="361_cvb1e"]
@@ -7746,9 +7748,9 @@ transform = Transform3D(0.866, 0, 0.5, 0.35355, 0.7071, -0.6124, -0.35355, 0.707
 shadow_enabled = true
 
 [node name="Floor" type="CSGBox3D" parent="." unique_id=1981020340]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50.79883, -0.5, -33.562008)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.9618, -0.5, -24.215336)
 use_collision = true
-size = Vector3(292.1734, 1, 223.79622)
+size = Vector3(611.2449, 1, 500.53687)
 material = SubResource("Material_floor")
 
 [node name="Ramp" type="CSGBox3D" parent="." unique_id=190298270]
@@ -7799,7 +7801,7 @@ physics_material_override = SubResource("PhysicsMaterial_table")
 freeze = true
 
 [node name="Kitchen" parent="." unique_id=796630869 instance=ExtResource("2_kitchen")]
-transform = Transform3D(74.76889, 0, 0, 0, 74.76889, 0, 0, 0, 74.76889, 50.5054, 0, -4.5812955)
+transform = Transform3D(74.76889, 0, 0, 0, 74.76889, 0, 0, 0, 74.76889, 50.873688, -6.1035156e-05, 11.264469)
 
 [node name="Player" parent="." unique_id=1742842863 instance=ExtResource("1_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -57.968517, 73.06331, 66.22568)
@@ -7882,7 +7884,7 @@ grow_horizontal = 0
 theme_override_colors/font_color = Color(1, 0.9, 0.45, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 8
-theme_override_fonts/font = ExtResource("11_r4bfa")
+theme_override_fonts/font = ExtResource("359_dimbo")
 theme_override_font_sizes/font_size = 34
 text = "COINS  0/10"
 horizontal_alignment = 2
@@ -26278,3 +26280,21 @@ shape = SubResource("ConvexPolygonShape3D_qht13")
 
 [node name="coin_gold4" parent="." unique_id=1373417099 instance=ExtResource("49_jnpch")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.425817, 73.36149, 66.637634)
+
+[node name="BookPromptLabel" type="Label3D" parent="." unique_id=745591711]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59.477, 101.24046, -263.064)
+pixel_size = 0.1
+billboard = 1
+no_depth_test = true
+modulate = Color(1, 0.85, 0.2, 1)
+text = "▼
+[E] Open Book"
+font = ExtResource("359_dimbo")
+font_size = 64
+width = 0.0
+
+[node name="Buku" parent="." unique_id=1828261525 instance=ExtResource("357_r4bfa")]
+transform = Transform3D(0.9877467, -0.15606561, 0, 0.15606561, 0.9877467, 0, 0, 0, 1, 64.77262, 68.06334, -243.56833)
+
+[node name="Skeleton_Warrior" parent="." unique_id=1814861339 instance=ExtResource("358_ps8sl")]
+transform = Transform3D(93.265, 0, 0, 0, 93.265, 0, 0, 0, 93.265, 666.75696, 2.4065628, -551.25854)

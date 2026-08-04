@@ -52,10 +52,26 @@ from the Start button -> Difficulty panel selection; it is still perfectly runna
 editor) for testing, and every headless probe in this project loads it directly.
 
 **`scenes/main_menu.tscn`** (script `scenes/Control.gd`) — Start → hides `MainButtons`
-and shows `DifficultyPanel` (`EasyButton`, `MediumButton`, `HardButton`, `BackButton`). Selecting Easy/Medium/Hard sets `GameSettings.difficulty` and calls `change_scene_to_file("res://scenes/Main.tscn")`; Setting → hides `MainButtons`
-and shows the `Setting` panel in place (no scene change), with Exit Setting
-reversing it; Credits → `res://scenes/credit_scene.tscn`; Quit →
-`get_tree().quit()`.
+and shows `DifficultyPanel` (`EasyButton`, `MediumButton`, `HardButton`,
+`BackButton`); Setting → hides `MainButtons` and shows the `Setting` panel in
+place (no scene change), with Exit Setting reversing it; Credits →
+`res://scenes/credit_scene.tscn`; Quit → `get_tree().quit()`.
+
+**The run-in is Start → DifficultyPanel → How to Play → `Main.tscn`.** Three
+panels share the screen and only one is ever visible.
+- `_on_easy/medium/hard_pressed()` all funnel through `_select_difficulty()`,
+  which **records `GameSettings.difficulty` and advances to the How to Play card —
+  it does not start the game.** That is what keeps `BackButton` meaningful: the
+  player can leave the difficulty screen with nothing having begun.
+- `_on_how_to_play_start_pressed()` → `_start_game()` is the **only** route into
+  gameplay. It sets `GameState.prologue_requested` and changes scene. Setting the
+  flag there rather than on the difficulty buttons means backing out cannot leave
+  it armed.
+- **`How to PLay/Button5` is connected to the menu script**, not to itself. It
+  used to fire `Next_HTP.gd`'s own `_on_pressed()`, which called
+  `change_scene_to_file()` directly and **never set `prologue_requested`** — so
+  the kitchen prologue silently never ran. `Next_HTP.gd` is still attached to the
+  button, but nothing is connected to it now.
 - **The Start and Setting signals were crossed in the .tscn** — `MainButtons/Start`
   was connected to `_on_setting_pressed` and vice versa — and `Control.gd`'s
   bodies were crossed to match, so the menu worked while every handler did the
@@ -68,6 +84,102 @@ reversing it; Credits → `res://scenes/credit_scene.tscn`; Quit →
   strands the player until they kill the process. Not fixed here because the
   right behaviour — auto-return when the scroll ends, or return on a key press —
   is a design call.
+
+### 1c. Kitchen Prologue (`scenes/buku.gd`, `Player._begin_prologue()`)
+
+The opening: the player walks a normal-looking kitchen at **full human size**,
+reads a cursed book, and is shrunk onto the workbench. It runs only when launched
+from the menu — `Control._start_game()` sets `GameState.prologue_requested`, and
+`Player._ready()` consumes it. Running `Main.tscn` directly (F6) skips straight to
+the bench, which is what every test wants.
+
+**The player is scaled to `PROLOGUE_SCALE` (74.76889) — the same factor `Kitchen`
+and `meja` carry — and that is the point.** Measured: the book is 26 units wide
+and floats 72 units above the walkable floor. At 1× that is an unreachable
+26-metre monolith; at 74.77× it is **0.35 m at waist height**, i.e. a real book on
+a real counter. The curse then restores 1×, which is what makes the bench
+enormous. `_base_movement` captures `max_speed`, `walk_speed`, `crouch_speed`,
+`jump_velocity` and `gravity` and scales them by the same factor — leaving them
+at 1× would have a 134-unit-tall figure crawling across the room — then restores
+them on the shrink.
+
+- **`is_prologue` suppresses the fall-death check.** The kitchen floor is at y = 0
+  and `FALL_DEATH_Y` is 65, so without the guard the player dies the instant they
+  spawn. Written as a condition on the check, **not** an early `return` from
+  `_physics_process` — returning there would freeze the player mid-prologue.
+- **`GameState.prologue_active` makes `PrepCamera` stand down.** The prologue runs
+  in PREPARATION (so no waves, no coins) but is first-person; without the guard
+  `PrepCamera._apply_phase()` would seize the camera and release the cursor.
+  `GameState.end_prologue()` clears the flag and re-emits `phase_changed`, which
+  is how PrepCamera finally takes over.
+- **HARD's pitch-black is deferred until the curse.**
+  `Player.apply_environment_lighting()` gives daylight while `is_prologue` is true
+  **whatever the difficulty**, and only blacks the world out once the prologue has
+  ended on HARD. Applying it at load would leave the player groping round an unlit
+  kitchen for a book they cannot see, and would spend the reveal before the game
+  had started. It is called three times: from `_ready()`; again at the end of
+  `_begin_prologue()` (because `_ready()` runs *before* that deferred call, so the
+  flag is not yet set and HARD would already have gone dark); and again in
+  `_end_prologue()`, which is the moment the lights go out.
+  - **Both branches set every property the other touches.** The `Environment` is
+    one shared resource that survives the switch, so a branch restoring only half
+    its state leaves the rest behind — in particular the daylight branch must put
+    `ambient_light_energy` back to 1.0, or a pass after a dark one leaves the
+    world unlit under a visible sky.
+- **Walking pace is `prologue_speed` (3.5), applied as
+  `prologue_speed * PROLOGUE_SCALE`.** It overrides crouch and walk alike — the
+  prologue is one deliberate stroll. The scaling is not optional: at a raw
+  3.5 u/s a 74.77×-sized player crosses the 763-unit room in **218 seconds**;
+  scaled, it is 3.
+- **The kitchen is solid.** `kitchen.tscn` carries a `Collisions` StaticBody3D
+  (layer 1, mask 0) with **9 box shapes** in kitchen-local units — four walls at
+  ±5.4, a room floor whose top is y = 0, and a counter ring at ±4.4. Without it
+  the player walks through the walls and off the edge of `Main.tscn`'s `Floor`
+  slab, which only covers the middle of the room. Note these scale with the
+  74.77× instance; uniform-scaled static boxes are fine, but this is the one
+  place in the project where a collider is scaled on purpose.
+- **`scenes/buku.gd`** is now just the trigger: an `InteractArea` (sphere r 24,
+  mask 1), `book_inspected` emitted once and latched, and `is_player_near()` for
+  anything that wants to show a prompt. It owns no label.
+- **The prompt label lives in `Main.tscn` as `BookPromptLabel`**, not in
+  `buku.tscn`. It is positioned in world space at (59.477, 92.2, −263.064) —
+  directly over the book — which is far easier to reason about than the book's own
+  local frame, where the mesh sits ~34 units up and 5 across from the node origin.
+  Gold "▼ / [E] Open Book" in `Dimbo Regular.ttf` at `font_size` 32 /
+  `pixel_size` 0.002, billboarded, `no_depth_test` on.
+- **`Player._update_book_prompt()` drives it**, from `_process`: visible only
+  while `is_prologue`, not mid-blackout, and `Buku.is_player_near()`. It bobs on
+  `sin(Time.get_ticks_msec() * BOOK_PROMPT_BOB_RATE) * BOOK_PROMPT_BOB`
+  (0.003 rad/ms, ±0.6 units) — clock-driven so it cannot drift out of phase, and
+  0.6 rather than a few centimetres because the book beside it is 26 units wide.
+  - **Both labels use `fixed_size = false` with `pixel_size` 0.0015, `font_size`
+    36, `outline_size` 8.** With `fixed_size = true` a Label3D is drawn at a
+    constant *screen* size and `pixel_size` becomes a screen scale — at 0.014 with
+    a 96 pt font that filled the view regardless of distance. Turning it off makes
+    the label a real object in the world that shrinks with distance like
+    everything else. Measured at these values: the marker is **0.57 world units
+    tall** (~20 px at 25 units on a 1080p 70° view) and the prompt 0.48. That is
+    readable but modest — raise `pixel_size` toward 0.003 if the marker needs to
+    shout across the room. `no_depth_test` stays on so both draw over the book.
+  - **`marker_bob` is 0.6, not 0.05.** This scene is in world units next to a book
+    26 units wide, so a 5 cm bob is 0.2% of the book and invisible.
+  - Both labels are positioned at the book's **measured** local offset
+    (−3.235, y, 3.88), not at the node origin — the mesh sits well off it. It reads `interact` in **`_input`, not `_unhandled_input`**, and
+  consumes the press — `Player._unhandled_input()` binds the same key to prop
+  pickup, so otherwise one press would open the book *and* grab a prop. Same
+  reasoning as `Coin.gd`.
+- **`HUD/SubtitleLabel` is set in `Dimbo Regular.ttf`**, the menu's face, at 36 pt
+  in the same gold (1, 0.85, 0.2) as the book marker with a 12 px black outline —
+  so the curse reads as the game's voice rather than as default engine text, and
+  matches the prompt that led the player to the book. Centred with
+  `autowrap_mode` 2; measured, the curse text needs 185 px of height in an 872 ×
+  408 box, so it wraps comfortably at either coin count.
+- On inspection the player freezes, `HUD/BlackOverlay` fades to black over
+  `FADE_TIME` (0.9 s) and `HUD/SubtitleLabel` shows the curse — **5 coins on EASY,
+  10 otherwise**, matching `CoinSpawner.coin_count`. Space (`ui_accept`) fades
+  back out, restores 1× scale and the movement tunables, teleports to the
+  tabletop spawn captured in `_ready()`, restores the combat HUD and weapons, and
+  calls `GameState.end_prologue()`.
 
 ## 1b. Phase System
 
@@ -291,8 +403,8 @@ Player (CharacterBody3D)
 ├── BuildMode (Node3D, BuildMode.gd)  -- Preparation-phase obstacle dragging
 ├── jump (AudioStreamPlayer3D)
 └── HUD (CanvasLayer)
-    ├── StatsLabel     -- velocity/pos/angle/bhop-gain debug readout
-    ├── PhaseLabel     -- current phase, attempt number and that phase's keys
+    ├── StatsLabel     -- velocity/pos/angle/bhop-gain debug readout; HIDDEN
+    ├── PhaseLabel     -- phase/attempt/keys debug readout; HIDDEN
     ├── GunBar         -- ProgressBar, Stasis Cannon charge; hidden when sword equipped
     ├── PlayerHealthBar -- ProgressBar, 100 HP; hidden except during the boss duel
     ├── StaffBar       -- ProgressBar, Staff of Quartz heavy-attack charge
@@ -417,6 +529,14 @@ contents change every frame and most of them are off-radar at any moment.
   top-left corner of the screen, and a Control that accepts input there would
   swallow clicks meant for the PREPARATION drag tool.
 
+**`StatsLabel` and `PhaseLabel` are debug scaffolding and ship hidden.** They read
+as leftover developer text over the game — "ACTION - attempt 1 / G restart" and a
+velocity dump. `_update_phase_label()` early-returns when the label is hidden, so
+nothing is formatted per frame for a Label nobody sees, and
+`_set_combat_hud_visible()` deliberately omits both so ending the prologue cannot
+switch them back on. Flip `visible` in `Player.tscn` to get them back while
+working.
+
 **Movement/bhop tunables** (`Player.gd`, all `@export`):
 `mouse_sensitivity`, `pitch_limit_deg`, `max_speed` (7.0), `walk_speed` (3.5),
 `ground_accel`, `friction`, `stop_speed`, `air_accel`, `air_cap` (0.8 — the
@@ -428,6 +548,19 @@ air-strafe target-speed clamp), `jump_velocity`, `gravity`, `auto_bhop`,
 see the friction gotcha in §5 before lowering it), `carry_range` (3.0),
 `carry_distance` (2.6), `carry_stiffness` (12.0), `carry_max_speed` (12.0),
 `carry_break_distance` (3.0), `throw_speed` (9.0).
+
+**The stage decides the weapon, not the slot keys.** `_weapon_slot_for_stage()`
+returns −1 during the prologue (a full-size person walking a kitchen carries
+nothing), `STAFF_SLOT` during the Archmage duel (the staff is the curse-breaker
+handed over for the fight), and slot 0 — the Stasis Cannon — for everything else.
+`equip()` is the single gate, and because each weapon gates its own
+`_unhandled_input` on `equipped`, holstering there also disables firing.
+
+**PREPARATION is still unarmed, and that is deliberate and pre-existing.**
+`_on_phase_changed()` holsters everything on entering PREPARATION because **LMB
+belongs to the prop-drag tool** then — an armed cannon would fire every time the
+player grabbed a prop. So the Cannon is live from ACTION onward, which is the
+whole coin round and the swarm it was balanced against.
 
 Weapon slot switching lives in `Player.gd`: `weapons: Array[Node3D]` =
 `[Pistol, Sword]`, `equip(slot)` sets exactly one weapon's `equipped = true`

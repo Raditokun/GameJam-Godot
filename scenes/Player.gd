@@ -58,6 +58,13 @@ extends CharacterBody3D
 @export var crouch_eye := 0.9
 ## How quickly the duck/stand transition plays out, in metres per second.
 @export var crouch_transition_speed := 8.0
+## Walking speed during the kitchen prologue, in 1x units per second. Half
+## `max_speed`, because the prologue is a stroll up to a book, not a bunny-hop.
+##
+## **Multiplied by `PROLOGUE_SCALE` where it is applied**, because the player is
+## 74.77x their normal size while walking the kitchen: a raw 3.5 u/s would take
+## over three minutes to cross a 763-unit room.
+@export var prologue_speed := 3.5
 
 
 # --- Props ---
@@ -153,6 +160,25 @@ var _spawn_transform := Transform3D.IDENTITY
 ## does not hard-code a bare 1.
 const STAFF_SLOT := 1
 
+## Scale the player wears during the kitchen prologue.
+##
+## The same 74.76889 the `Kitchen` and `meja` instances carry. At 1x the player is
+## an insect in a 763-unit room and the cursed book -- 26 units wide, 72 units off
+## the floor -- is an unreachable monolith; at this scale the book is 0.35 m and
+## sits at waist height, i.e. a real book in a real kitchen. The curse then
+## shrinks them to 1x, which is what makes the bench enormous.
+const PROLOGUE_SCALE := 74.76889
+## Where the prologue starts: on the kitchen floor (top y = 0), a few strides
+## back from the book so the player walks up to it.
+const PROLOGUE_SPAWN := Vector3(59.5, 8.0, -180.0)
+## Seconds the fade to and from black takes.
+const FADE_TIME := 0.9
+## How far the book marker rises and falls, in world units. 0.6 rather than a
+## few centimetres because the book beside it is 26 units wide.
+const BOOK_PROMPT_BOB := 0.6
+## Radians per millisecond for that bob -- a full cycle just over 2 s.
+const BOOK_PROMPT_BOB_RATE := 0.003
+
 ## Height below which the player has fallen off the bench and dies. The tabletop
 ## is at y ~= 73.6 and the kitchen floor is at y = 0, so there is a wide dead band
 ## between "standing on the bench" and "falling". Matches the threshold
@@ -164,6 +190,20 @@ const FALL_DEATH_Y := 65.0
 ## than a general health system.
 var health := 100.0
 var max_health := 100.0
+
+## True while the kitchen prologue is running. Suppresses the fall-death check
+## (the kitchen floor is 73 units below the bench, which would otherwise read as
+## having fallen off it) and keeps the combat HUD off screen.
+var is_prologue := false
+## True between inspecting the book and pressing Space: movement is frozen and
+## the curse subtitle is up.
+var _in_curse_blackout := false
+## Movement tunables at 1x, captured before the prologue scales them up.
+var _base_movement := {}
+## The cursed book and its floating marker, both resolved once at prologue start.
+var _book: Node = null
+var _book_prompt: Label3D = null
+var _book_prompt_rest_y := 0.0
 
 ## True from the moment an enemy reaches the player until they retry. Gates
 ## movement and every input except the two retry keys.
@@ -205,31 +245,202 @@ func _ready() -> void:
 	health = max_health
 	_update_health_bar()
 	_set_health_bar_visible(false)
-	_apply_difficulty_lighting()
+	apply_environment_lighting()
+	if GameState.prologue_requested:
+		# Consumed, so a later reset or scene reload does not replay the prologue.
+		GameState.prologue_requested = false
+		_begin_prologue.call_deferred()
 
 
-## Applies the HARD-mode pitch-dark environment. On HARD the DirectionalLight
-## is disabled, background mode switches to pitch-black color, and ambient light
-## is set to dark color mode, leaving only the player's SpotLight3D ("Flashlight").
-## On EASY/MEDIUM, daylight and procedural sky are restored and flashlight is off.
-func _apply_difficulty_lighting() -> void:
+## Puts the player in the kitchen at full size, before the curse.
+##
+## Deferred from _ready so it wins over PrepCamera, which also applies the phase
+## on a deferred call and would otherwise take the camera back.
+func _begin_prologue() -> void:
+	is_prologue = true
+	GameState.prologue_active = true
+
+	# Scale the body AND its movement together. Speeds and gravity are in units
+	# per second, so leaving them at 1x values would have a 134-unit-tall figure
+	# creeping across the room at a crawl.
+	_base_movement = {
+		"max_speed": max_speed, "walk_speed": walk_speed,
+		"crouch_speed": crouch_speed, "jump_velocity": jump_velocity,
+		"gravity": gravity, "scale": scale,
+	}
+	scale = Vector3.ONE * PROLOGUE_SCALE
+	max_speed *= PROLOGUE_SCALE
+	walk_speed *= PROLOGUE_SCALE
+	crouch_speed *= PROLOGUE_SCALE
+	jump_velocity *= PROLOGUE_SCALE
+	gravity *= PROLOGUE_SCALE
+
+	global_position = PROLOGUE_SPAWN
+	velocity = Vector3.ZERO
+	_set_combat_hud_visible(false)
+	# is_prologue is set above, so this holsters everything.
+	equip(_slot)
+	# First person, cursor captured -- PrepCamera stands down for the prologue.
+	camera.make_current()
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+	# Re-applied now that is_prologue is set: _ready() runs this before the
+	# deferred call that gets here, so on HARD it would already have blacked the
+	# kitchen out.
+	apply_environment_lighting()
+
+	_book = _find_book()
+	if _book != null and _book.has_signal("book_inspected"):
+		_book.book_inspected.connect(_on_book_inspected, CONNECT_ONE_SHOT)
+
+	var host: Node = get_tree().current_scene
+	if host == null:
+		host = get_parent()
+	if host != null:
+		_book_prompt = host.find_child("BookPromptLabel", true, false) as Label3D
+	if _book_prompt != null:
+		_book_prompt_rest_y = _book_prompt.position.y
+
+
+## Shows the floating "[E] Open Book" marker while the player is near the book
+## during the prologue, and floats it gently so it catches the eye.
+##
+## The label lives in `Main.tscn` (`BookPromptLabel`), not in `buku.tscn`, so it
+## is positioned in world space next to the book rather than inside the book's
+## own oddly-offset local frame. `Buku` only reports whether someone is close;
+## this decides whether the label is up.
+func _update_book_prompt() -> void:
+	if _book_prompt == null:
+		return
+	# Typed explicitly: is_player_near() is a dynamic call on an untyped Node, so
+	# inference fails and the whole script refuses to parse.
+	var show_it: bool = is_prologue and not _in_curse_blackout \
+		and _book != null and is_instance_valid(_book) and _book.is_player_near()
+	_book_prompt.visible = show_it
+	if not show_it:
+		return
+	# Clock-driven rather than accumulated, so it cannot drift out of phase.
+	_book_prompt.position.y = _book_prompt_rest_y \
+		+ sin(Time.get_ticks_msec() * BOOK_PROMPT_BOB_RATE) * BOOK_PROMPT_BOB
+
+
+func _find_book() -> Node:
+	var host: Node = get_tree().current_scene
+	if host == null:
+		host = get_parent()
+	if host == null:
+		return null
+	return host.find_child("Buku", true, false)
+
+
+## Everything that belongs to the bench fight, hidden while the prologue runs.
+func _set_combat_hud_visible(shown: bool) -> void:
+	# PhaseLabel and StatsLabel are deliberately absent: both are debug readouts
+	# that ship hidden, and listing them here would switch them back on when the
+	# prologue ends.
+	for path in ["HUD/Minimap", "HUD/Crosshair", "HUD/GunBar", "HUD/StaffBar"]:
+		var node := get_node_or_null(path) as CanvasItem
+		if node != null:
+			node.visible = shown
+	# The coin readout lives in Main.tscn's own RoundUI, not on this HUD.
+	var host: Node = get_tree().current_scene
+	if host == null:
+		host = get_parent()
+	if host != null:
+		var coin_label := host.find_child("CoinLabel", true, false) as CanvasItem
+		if coin_label != null:
+			coin_label.visible = shown
+
+
+## The book has been read. Freeze, fade to black, and put the curse on screen.
+func _on_book_inspected() -> void:
+	if _in_curse_blackout:
+		return
+	_in_curse_blackout = true
+	velocity = Vector3.ZERO
+
+	var coins := 5 if GameSettings.difficulty == GameSettings.Difficulty.EASY else 10
+	var subtitle := get_node_or_null("HUD/SubtitleLabel") as Label
+	var overlay := get_node_or_null("HUD/BlackOverlay") as ColorRect
+	if overlay != null:
+		create_tween().tween_property(overlay, "color:a", 1.0, FADE_TIME)
+	if subtitle != null:
+		subtitle.text = (
+			"You have been cursed! Hahaha! Collect all %d of my lost coins "
+			+ "if you ever wish to return to your normal size!\n\n"
+			+ "[Press Space to Continue]"
+		) % coins
+		subtitle.visible = true
+	# Released so the fade is readable without the cursor trapped, and because
+	# nothing needs mouse-look while the screen is black.
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+## Space. The curse lands: shrink to 1x, drop onto the bench, hand the round to
+## the normal PREPARATION flow.
+func _end_prologue() -> void:
+	_in_curse_blackout = false
+	is_prologue = false
+	# The curse lands here: on HARD this is the moment the lights go out.
+	apply_environment_lighting()
+
+	var subtitle := get_node_or_null("HUD/SubtitleLabel") as Label
+	if subtitle != null:
+		subtitle.visible = false
+	var overlay := get_node_or_null("HUD/BlackOverlay") as ColorRect
+	if overlay != null:
+		create_tween().tween_property(overlay, "color:a", 0.0, FADE_TIME)
+
+	# Back to miniature, with the movement tunables restored to their 1x values.
+	if not _base_movement.is_empty():
+		scale = _base_movement["scale"]
+		max_speed = _base_movement["max_speed"]
+		walk_speed = _base_movement["walk_speed"]
+		crouch_speed = _base_movement["crouch_speed"]
+		jump_velocity = _base_movement["jump_velocity"]
+		gravity = _base_movement["gravity"]
+		_base_movement = {}
+
+	# The spawn pose captured in _ready() is the tabletop one, which is exactly
+	# where the shrunken player belongs.
+	global_transform = _spawn_transform
+	velocity = Vector3.ZERO
+	_set_combat_hud_visible(true)
+	equip(_slot)
+	# Hands the camera and the cursor to PrepCamera and starts the build phase.
+	GameState.end_prologue()
+
+
+
+## Sets the world lighting for the current difficulty AND the current stage of the
+## round. Called on load and again the moment the prologue ends.
+##
+## HARD's pitch-black is **deferred until after the curse**. Applying it at load
+## would leave the player groping around an unlit kitchen for a book they cannot
+## see, and would spend the reveal before the game has started. Lit kitchen, then
+## the curse, then darkness.
+##
+## Both branches set every property the other touches: the `Environment` is a
+## single shared resource that survives the switch, so a branch that only sets
+## half its state leaves the other half behind.
+func apply_environment_lighting() -> void:
 	var flashlight := get_node_or_null("Head/Camera3D/Flashlight") as Light3D
-	var dir_light := get_tree().current_scene.find_child("DirectionalLight3D", true, false) as DirectionalLight3D
-	var world_env := get_tree().current_scene.find_child("WorldEnvironment", true, false) as WorldEnvironment
+	# `current_scene` is null for a scene hosted by hand rather than loaded by the
+	# SceneTree, and find_child() on null crashes _ready() outright -- which takes
+	# the rest of the player's setup down with it. Fall back to our own parent,
+	# which is the Main root either way.
+	var host: Node = get_tree().current_scene
+	if host == null:
+		host = get_parent()
+	if host == null:
+		return
+	var dir_light := host.find_child("DirectionalLight3D", true, false) as DirectionalLight3D
+	var world_env := host.find_child("WorldEnvironment", true, false) as WorldEnvironment
 
-	if GameSettings.difficulty == GameSettings.Difficulty.HARD:
-		if dir_light != null:
-			dir_light.visible = false
-		if world_env != null and world_env.environment != null:
-			var env := world_env.environment
-			env.background_mode = Environment.BG_COLOR
-			env.background_color = Color(0.005, 0.005, 0.015, 1.0)
-			env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-			env.ambient_light_color = Color(0.01, 0.01, 0.02, 1.0)
-			env.ambient_light_energy = 0.02
-		if flashlight != null:
-			flashlight.visible = true
-	else:
+	# Daylight while the prologue runs, whatever the difficulty. The kitchen has to
+	# be lit for the player to find the book -- HARD's darkness is the curse's
+	# doing, so it lands with the curse and not before.
+	if is_prologue or GameSettings.difficulty != GameSettings.Difficulty.HARD:
 		if dir_light != null:
 			dir_light.visible = true
 			dir_light.light_energy = 1.0
@@ -237,8 +448,26 @@ func _apply_difficulty_lighting() -> void:
 			var env := world_env.environment
 			env.background_mode = Environment.BG_SKY
 			env.ambient_light_source = Environment.AMBIENT_SOURCE_BG
+			# Restored too: the dark branch drops this to 0.02, and the Environment
+			# is one shared resource that outlives the switch. Without this a
+			# daylight pass after a dark one leaves the world unlit.
+			env.ambient_light_energy = 1.0
 		if flashlight != null:
 			flashlight.visible = false
+		return
+
+	# HARD, on the bench, after the curse: pitch dark but for the flashlight.
+	if dir_light != null:
+		dir_light.visible = false
+	if world_env != null and world_env.environment != null:
+		var env := world_env.environment
+		env.background_mode = Environment.BG_COLOR
+		env.background_color = Color(0.005, 0.005, 0.015, 1.0)
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		env.ambient_light_color = Color(0.01, 0.01, 0.02, 1.0)
+		env.ambient_light_energy = 0.02
+	if flashlight != null:
+		flashlight.visible = true
 
 
 ## Spends health, shakes the camera, and dies at zero. Called by the Archmage's
@@ -347,6 +576,9 @@ func _clear_death() -> void:
 	# player has to be too or the second attempt starts already beaten.
 	health = max_health
 	_update_health_bar()
+	# reset_round() has already cleared GameState.boss_fight, so this holsters
+	# everything -- a retry starts unarmed like any other round.
+	equip(_slot)
 	# A reset ends any duel in progress -- GameState.reset_round() frees the boss
 	# -- so the bar goes away with it. This is the path `_on_round_reset()` takes.
 	_set_health_bar_visible(false)
@@ -373,6 +605,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		var limit := deg_to_rad(pitch_limit_deg)
 		_pitch = clampf(_pitch - event.relative.y * look, -limit, limit)
 		head.rotation.x = _pitch
+
+	# Space ends the curse blackout. Checked before everything else, because
+	# while the screen is black this is the only input that means anything.
+	if _in_curse_blackout:
+		if event.is_action_pressed("ui_accept"):
+			_end_prologue()
+			get_viewport().set_input_as_handled()
+		return
 
 	# Death outranks everything below. Checked BEFORE the phase gate: a reset
 	# triggered elsewhere can flip the phase to PREPARATION on the same press, and
@@ -431,8 +671,22 @@ func _physics_process(delta: float) -> void:
 	# frame it happens rather than a frame later, and gated on `not is_dead` so a
 	# corpse that keeps sinking cannot re-trigger. die() is idempotent anyway, but
 	# this keeps the intent readable.
-	if not is_dead and global_position.y < FALL_DEATH_Y:
+	# Not during the prologue: the kitchen floor is 73 units BELOW the bench, so
+	# the fall-death threshold would fire the moment the player spawns on it.
+	# Written as a guard on the check rather than an early `return` from
+	# _physics_process -- returning here would freeze the player mid-prologue.
+	if not is_prologue and not is_dead and global_position.y < FALL_DEATH_Y:
 		die()
+
+	# Frozen while the curse subtitle is up, but still driven so gravity keeps
+	# the body settled.
+	if _in_curse_blackout:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		if not is_on_floor():
+			velocity.y -= gravity * delta
+		move_and_slide()
+		return
 
 	if is_dead:
 		# Frozen in place, but still driven: gravity and move_and_slide keep the
@@ -455,6 +709,10 @@ func _physics_process(delta: float) -> void:
 		speed = crouch_speed
 	elif Input.is_action_pressed("walk"):
 		speed = walk_speed
+	if is_prologue:
+		# Overrides crouch and walk alike: the prologue is a single, deliberate
+		# pace. Scaled to match the 74.77x body -- see the export's note.
+		speed = prologue_speed * PROLOGUE_SCALE
 	var wish_dir := _get_wish_direction()
 	var wants_jump := (
 		Input.is_action_pressed("jump")
@@ -524,6 +782,7 @@ func _update_camera_shake(delta: float) -> void:
 ## watch, since vertical speed contributes nothing to strafe gain.
 func _process(delta: float) -> void:
 	_update_camera_shake(delta)
+	_update_book_prompt()
 	_update_phase_label()
 	var pos := global_position
 	stats_label.text = (
@@ -565,6 +824,12 @@ func _on_phase_changed(new_phase: int) -> void:
 ## Bottom-centre phase readout: which half of the loop is running and the key
 ## that leaves it.
 func _update_phase_label() -> void:
+	# Debug scaffolding, off by default. It reads as leftover developer text over
+	# the game -- the phase and its keys belong in a designed HUD, not in a
+	# two-line dump. Flip PhaseLabel/StatsLabel visible in Player.tscn to get them
+	# back while working.
+	if phase_label == null or not phase_label.visible:
+		return
 	if GameState.is_preparation():
 		phase_label.text = (
 			"PREPARATION  -  attempt %d\n"
@@ -581,9 +846,31 @@ func equip(slot: int) -> void:
 	if weapons.is_empty():
 		return
 	_slot = wrapi(slot, 0, weapons.size())
+	# **The stage decides the weapon, not the slot keys.** See
+	# _weapon_slot_for_stage(): nothing during the prologue, the Stasis Cannon for
+	# the build-and-survive round, the Staff of Quartz for the Archmage duel.
+	#
+	# Gating here rather than at each call site makes it the single place a weapon
+	# can come out -- and because each weapon gates its own input handler on
+	# `equipped`, holstering here also disables firing.
+	var allowed := _weapon_slot_for_stage()
 	for i in weapons.size():
 		if is_instance_valid(weapons[i]):
-			weapons[i].equipped = (i == _slot)
+			weapons[i].equipped = i == allowed
+
+
+## Which weapon the current stage of the round allows, or -1 for none.
+##
+## The prologue is unarmed because the player is a full-size person walking a
+## kitchen; the duel swaps to the staff because that is the curse-breaker. Every
+## other stage -- PREPARATION, the coin round, ACTION -- is the Stasis Cannon,
+## which is what the swarm was balanced around.
+func _weapon_slot_for_stage() -> int:
+	if is_prologue:
+		return -1
+	if GameState.boss_fight:
+		return STAFF_SLOT
+	return 0
 
 
 ## Shoves any physics prop the capsule slid against this frame. A CharacterBody3D

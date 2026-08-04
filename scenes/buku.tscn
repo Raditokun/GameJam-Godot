@@ -1,0 +1,31 @@
+[gd_scene format=3 uid="uid://udcc8lbvjstp"]
+
+[ext_resource type="Script" uid="uid://ct5xlw3iojvha" path="res://scenes/buku.gd" id="0_buku"]
+[ext_resource type="Texture2D" uid="uid://cm3mm7v4qogd" path="res://3DModels/pierandrea-matthioluss-herbarium/textures/internal_ground_ao_texture.jpeg" id="1_fag2w"]
+[ext_resource type="Texture2D" uid="uid://bbfwxvd1pt3ik" path="res://3DModels/pierandrea-matthioluss-herbarium/textures/IKS_942_Kreuterbuch_529K_edit02w.png" id="2_jpm8y"]
+[ext_resource type="ArrayMesh" uid="uid://c4v0ffljatl8s" path="res://3DModels/pierandrea-matthioluss-herbarium/source/IKS_942_Kreuterbuch_529K_edit02w/IKS_942_Kreuterbuch_529K_edit02w.OBJ" id="3_wyvyj"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_g1qlg"]
+albedo_texture = ExtResource("1_fag2w")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_v1532"]
+albedo_texture = ExtResource("2_jpm8y")
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_buku"]
+radius = 233.70226
+
+[node name="Buku" type="Node3D" unique_id=1828261525]
+script = ExtResource("0_buku")
+
+[node name="Iks942Kreuterbuch529kEdit02w" type="MeshInstance3D" parent="." unique_id=854493327]
+transform = Transform3D(0.00815728, 0.9999667, 0.00010545406, -0.9999665, 0.008157207, 0.000658157, 0.00065727683, -0.00011080744, 0.99999976, -1.4254842, 14.654875, -14.566504)
+material_override = SubResource("StandardMaterial3D_g1qlg")
+material_overlay = SubResource("StandardMaterial3D_v1532")
+mesh = ExtResource("3_wyvyj")
+
+[node name="InteractArea" type="Area3D" parent="." unique_id=857299356]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.235, 11.949, 3.88)
+collision_layer = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractArea" unique_id=1284267191]
+shape = SubResource("SphereShape3D_buku")

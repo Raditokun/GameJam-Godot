@@ -633,4 +633,4 @@ script = ExtResource("8_tbmy8")
 [connection signal="value_changed" from="Setting/Music Slider" to="Setting/Music Slider" method="_on_value_changed"]
 [connection signal="toggled" from="Setting/FullscreenControl" to="Setting/FullscreenControl" method="_on_toggled"]
 [connection signal="toggled" from="Setting/FPScontrol" to="Setting/FPScontrol" method="_on_toggled"]
-[connection signal="pressed" from="How to PLay/Button5" to="How to PLay/Button5" method="_on_pressed"]
+[connection signal="pressed" from="How to PLay/Button5" to="." method="_on_how_to_play_start_pressed"]
